@@ -34,6 +34,5 @@ def get_teams():
         }
         teams.append(team)
 
-    df = pd.DataFrame(teams)
-    df.to_csv(TEAMS_CSV, index=False)
-    return df
+
+    return teams

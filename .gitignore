@@ -1,1 +1,4 @@
-/data/
+./data/
+./main.py
+./main.ipynb
+.venv/
