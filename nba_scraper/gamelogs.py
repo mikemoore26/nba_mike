@@ -1,5 +1,3 @@
-# nba_scraper/gamelogs.py
-
 from __future__ import annotations
 
 import json
@@ -10,14 +8,11 @@ import pandas as pd
 from bs4 import BeautifulSoup, Comment
 from pandas.errors import EmptyDataError
 
-from nba_scraper.browser import get_page_source
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
 from nba_scraper.config import DATA_DIR, PROGRESS_DIR, PLAYERS_CSV
-
-# --- Simple logging ----------------------------------------------------------
-
-def log(msg: str, level: str = "INFO"):
-    print(f"[{level}] {msg}")
-
+from nba_scraper.browser import create_driver, wait_for_any, log
 
 # --- Paths -------------------------------------------------------------------
 
@@ -28,9 +23,6 @@ GAMELOG_PROGRESS_FILE: Path = PROGRESS_DIR / "progress_gamelogs.json"
 # --- Progress helpers --------------------------------------------------------
 
 def load_gamelog_progress() -> set[tuple[int, str]]:
-    """
-    Returns a set of (season, href) tuples we've already scraped.
-    """
     if not GAMELOG_PROGRESS_FILE.exists():
         return set()
 
@@ -50,15 +42,10 @@ def save_gamelog_progress(done_set: set[tuple[int, str]]) -> None:
 # --- Parsing a single gamelog page ------------------------------------------
 
 def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> list[dict]:
-    """
-    Parse a Basketball-Reference game log page like:
-    https://www.basketball-reference.com/players/c/chrisma01/gamelog/2017
-    """
     soup = BeautifulSoup(html, "html.parser")
 
     table = soup.find("table", id="player_game_log_reg")
 
-    # Fallback if hidden in HTML comments
     if not table:
         comments = soup.find_all(string=lambda text: isinstance(text, Comment))
         for c in comments:
@@ -81,7 +68,7 @@ def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> l
         if row.get("data-row") is None:
             continue
 
-        game = {
+        games.append({
             "player":  player_name,
             "href":    href,
             "season":  season,
@@ -112,9 +99,7 @@ def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> l
             "tov":  get_stat(row, "tov"),
             "pf":   get_stat(row, "pf"),
             "pts":  get_stat(row, "pts"),
-        }
-
-        games.append(game)
+        })
 
     return games
 
@@ -127,14 +112,11 @@ def get_gamelogs(
     debug: bool = False,
     delay: float = 1.0,
 ) -> list[dict]:
-    """
-    Scrape gamelogs for a given season and save to data/gamelogs/gamelogs_{year}.csv
-    """
+
     DATA_DIR.mkdir(exist_ok=True)
     GAMELOG_DIR.mkdir(exist_ok=True)
     PROGRESS_DIR.mkdir(exist_ok=True)
 
-    # Load player list if not provided
     if data is None:
         data = pd.read_csv(PLAYERS_CSV)
 
@@ -147,7 +129,6 @@ def get_gamelogs(
     seen_keys: set[tuple[str, int, str]] = set()
     file_initialized = False
 
-    # If CSV already exists, keep what we have and populate seen_keys
     if out_path.exists():
         try:
             existing_df = pd.read_csv(out_path)
@@ -166,59 +147,114 @@ def get_gamelogs(
         except EmptyDataError:
             log(f"{out_path} exists but is empty. Starting fresh.", "WARN")
 
-    total_players = len(data)
-    for i, row in enumerate(data.itertuples(index=False), start=1):
-        log(f"{i}/{total_players}")
-        log(f"Processing player: {row.name}")
-        href = row.href
-        player_name = row.name
+    # Option A: keep driver updated by returning it from fetch_html
+    driver = None
 
-        if (year, href) in done:
-            log(f"{href} {year} already processed", "SKIP")
-            continue
+    def fetch_html(driver, url: str, retries: int = 3, retry_delay: float = 5.0):
+        if driver is None:
+            driver = create_driver()
 
-        url = href.replace(".html", f"/gamelog/{year}")
-        log(f"Scraping gamelog: {url}")
+        for attempt in range(1, retries + 1):
+            try:
+                driver.set_page_load_timeout(25)
+                driver.get(url)
 
-        html = get_page_source(url)
-        if not html:
-            log(f"Empty HTML for {href} {year}. Skipping.", "WARN")
+                # Wait for table or at least body
+                wait_for_any(driver, ["#player_game_log_reg", "body"], timeout=15)
+
+                # Stop extra loading to reduce renderer hangs
+                try:
+                    driver.execute_script("window.stop();")
+                except Exception:
+                    pass
+
+                return driver.page_source or "", driver
+
+            except Exception as e:
+                msg = str(e)
+                log(f"Error loading {url} (attempt {attempt}/{retries}): {e}", "WARN")
+
+                hard_restart = (
+                    "HTTPConnectionPool(host='localhost'" in msg
+                    or "Read timed out" in msg
+                    or "MaxRetryError" in msg
+                    or "chrome not reachable" in msg
+                    or "disconnected" in msg
+                    or "Timed out receiving message from renderer" in msg
+                )
+
+                try:
+                    driver.execute_script("window.stop();")
+                except Exception:
+                    pass
+
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+
+                time.sleep(2)
+                driver = create_driver()
+
+                time.sleep(2 if hard_restart else retry_delay)
+
+        return "", driver
+
+    try:
+        total_players = len(data)
+        for i, row in enumerate(data.itertuples(index=False), start=1):
+            log(f"{i}/{total_players}")
+            log(f"Processing player: {row.name}")
+            href = row.href
+            player_name = row.name
+
+            if (year, href) in done:
+                log(f"{href} {year} already processed", "SKIP")
+                continue
+
+            url = href.replace(".html", f"/gamelog/{year}")
+            log(f"Scraping gamelog: {url}")
+
+            html, driver = fetch_html(driver, url)
+            if not html:
+                log(f"Empty HTML for {href} {year}. Skipping.", "WARN")
+                done.add((year, href))
+                save_gamelog_progress(done)
+                continue
+
+            new_games = parse_gamelog_page(html=html, player_name=player_name, href=href, season=year)
+
+            if new_games:
+                unique_new: list[dict] = []
+                for g in new_games:
+                    key = (g["href"], g["season"], g["date"])
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        unique_new.append(g)
+
+                if unique_new:
+                    games.extend(unique_new)
+                    df = pd.DataFrame(unique_new)
+
+                    mode = "a" if file_initialized else "w"
+                    df.to_csv(out_path, mode=mode, index=False, header=not file_initialized)
+                    file_initialized = True
+
             done.add((year, href))
             save_gamelog_progress(done)
-            continue
 
-        new_games = parse_gamelog_page(
-            html=html,
-            player_name=player_name,
-            href=href,
-            season=year,
-        )
+            time.sleep(delay)
 
-        if new_games:
-            unique_new: list[dict] = []
-            for g in new_games:
-                key = (g["href"], g["season"], g["date"])
-                if key not in seen_keys:
-                    seen_keys.add(key)
-                    unique_new.append(g)
+            if debug and new_games:
+                log("[DEBUG] Stopping after first player with data.", "DEBUG")
+                break
 
-            if unique_new:
-                games.extend(unique_new)
-                df = pd.DataFrame(unique_new)
-
-                # Append only new rows; write header once
-                mode = "a" if file_initialized else "w"
-                df.to_csv(out_path, mode=mode, index=False, header=not file_initialized)
-                file_initialized = True
-
-        done.add((year, href))
-        save_gamelog_progress(done)
-
-        time.sleep(delay)
-
-        if debug and new_games:
-            log("[DEBUG] Stopping after first player with data.", "DEBUG")
-            break
+    finally:
+        try:
+            if driver is not None:
+                driver.quit()
+        except Exception:
+            pass
 
     log(f"Finished gamelog scraping for season {year}. Total games: {len(games)}")
     return games

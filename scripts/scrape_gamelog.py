@@ -15,7 +15,7 @@ def main():
 
     end_year = 2026
     debug = False
-    start_year = end_year - 1
+    start_year = end_year - 5
 
     players = pd.read_csv(PLAYERS_CSV)
     i = 0 
