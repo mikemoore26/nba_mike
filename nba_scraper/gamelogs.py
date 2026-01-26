@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 from bs4 import BeautifulSoup, Comment
 from pandas.errors import EmptyDataError
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-
 from nba_scraper.config import DATA_DIR, PROGRESS_DIR, PLAYERS_CSV
 from nba_scraper.browser import create_driver, wait_for_any, log
+
 
 # --- Paths -------------------------------------------------------------------
 
@@ -22,21 +21,59 @@ GAMELOG_PROGRESS_FILE: Path = PROGRESS_DIR / "progress_gamelogs.json"
 
 # --- Progress helpers --------------------------------------------------------
 
-def load_gamelog_progress() -> set[tuple[int, str]]:
+def _key(season: int, href: str) -> str:
+    return f"{season}|{href}"
+
+
+def load_gamelog_progress() -> dict[str, str]:
+    """
+    Returns dict: "season|href" -> "YYYY-MM-DD"
+    Backward compatible with old format: [[season, href], ...]
+    """
     if not GAMELOG_PROGRESS_FILE.exists():
-        return set()
+        return {}
 
     with GAMELOG_PROGRESS_FILE.open("r") as f:
         data = json.load(f)
 
-    return {(int(season), href) for season, href in data}
+    if isinstance(data, list):
+        today = date.today().isoformat()
+        return {_key(int(season), href): today for season, href in data}
+
+    if isinstance(data, dict):
+        return {str(k): str(v) for k, v in data.items()}
+
+    return {}
 
 
-def save_gamelog_progress(done_set: set[tuple[int, str]]) -> None:
+def save_gamelog_progress(progress: dict[str, str]) -> None:
     PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
-    data = [[season, href] for (season, href) in sorted(done_set)]
     with GAMELOG_PROGRESS_FILE.open("w") as f:
-        json.dump(data, f)
+        json.dump(progress, f, indent=2)
+
+
+# --- Block / throttle detection ---------------------------------------------
+
+def is_blocked_html(html: str) -> bool:
+    """
+    Very lightweight heuristic detection.
+    """
+    if not html:
+        return True
+
+    h = html.lower()
+    signals = [
+        "captcha",
+        "verify you are human",
+        "unusual traffic",
+        "access denied",
+        "temporarily blocked",
+        "request blocked",
+        "cloudflare",
+        "incapsula",
+        "automated queries",
+    ]
+    return any(s in h for s in signals)
 
 
 # --- Parsing a single gamelog page ------------------------------------------
@@ -110,7 +147,7 @@ def get_gamelogs(
     data: pd.DataFrame | None = None,
     year: int = 2026,
     debug: bool = False,
-    delay: float = 1.0,
+    delay: float = 5,   # bump default a bit to be safer
 ) -> list[dict]:
 
     DATA_DIR.mkdir(exist_ok=True)
@@ -120,8 +157,12 @@ def get_gamelogs(
     if data is None:
         data = pd.read_csv(PLAYERS_CSV)
 
-    done = load_gamelog_progress()
-    log(f"Loaded {len(done)} completed (season, href) combos from gamelog progress.")
+    progress = load_gamelog_progress()
+    today = date.today().isoformat()
+    log(f"Loaded {len(progress)} progress entries from gamelog progress file.")
+
+    def scraped_today(season: int, href: str) -> bool:
+        return progress.get(_key(season, href)) == today
 
     out_path = GAMELOG_DIR / f"gamelogs_{year}.csv"
 
@@ -140,17 +181,16 @@ def get_gamelogs(
                 season_val = g.get("season")
                 date_val = g.get("date")
                 if href_val and season_val is not None and date_val:
-                    seen_keys.add((href_val, int(season_val), str(date_val)))
+                    seen_keys.add((str(href_val), int(season_val), str(date_val)))
 
             if not existing_df.empty:
                 file_initialized = True
         except EmptyDataError:
             log(f"{out_path} exists but is empty. Starting fresh.", "WARN")
 
-    # Option A: keep driver updated by returning it from fetch_html
     driver = None
 
-    def fetch_html(driver, url: str, retries: int = 3, retry_delay: float = 5.0):
+    def fetch_html(driver, url: str, retries: int = 3, retry_delay: float = 8.0):
         if driver is None:
             driver = create_driver()
 
@@ -159,16 +199,18 @@ def get_gamelogs(
                 driver.set_page_load_timeout(25)
                 driver.get(url)
 
-                # Wait for table or at least body
                 wait_for_any(driver, ["#player_game_log_reg", "body"], timeout=15)
 
-                # Stop extra loading to reduce renderer hangs
                 try:
                     driver.execute_script("window.stop();")
                 except Exception:
                     pass
 
-                return driver.page_source or "", driver
+                html = driver.page_source or ""
+                if is_blocked_html(html):
+                    raise RuntimeError("Possible block/throttle detected in HTML")
+
+                return html, driver
 
             except Exception as e:
                 msg = str(e)
@@ -196,30 +238,67 @@ def get_gamelogs(
                 time.sleep(2)
                 driver = create_driver()
 
-                time.sleep(2 if hard_restart else retry_delay)
+                # backoff more aggressively on suspected blocks
+                time.sleep((20 * attempt) if "block" in msg.lower() else (2 if hard_restart else retry_delay))
 
         return "", driver
 
+    def preflight_check(driver, test_url: str, retries: int = 3):
+        """
+        If preflight fails, we likely got throttled/blocked.
+        """
+        for attempt in range(1, retries + 1):
+            log(f"Preflight check {attempt}/{retries}: {test_url}", "INFO")
+            html, driver = fetch_html(driver, test_url, retries=1, retry_delay=0)
+
+            if html and not is_blocked_html(html):
+                log("Preflight passed.", "INFO")
+                return True, driver
+
+            log("Preflight failed (possible block/throttle). Backing off...", "WARN")
+            try:
+                if driver is not None:
+                    driver.quit()
+            except Exception:
+                pass
+            driver = None
+            time.sleep(30 * attempt)
+
+        return False, driver
+
     try:
+        # --- Preflight BEFORE scraping everyone ------------------------------
+        if len(data) > 0:
+            sample_href = str(data.iloc[0]["href"])
+            test_url = sample_href.replace(".html", f"/gamelog/{year}")
+            ok, driver = preflight_check(driver, test_url, retries=3)
+            if not ok:
+                log("Preflight failed. Likely blocked/throttled. Stop now and retry later (or increase delay).", "ERROR")
+                return games
+
         total_players = len(data)
         for i, row in enumerate(data.itertuples(index=False), start=1):
-            log(f"{i}/{total_players}")
-            log(f"Processing player: {row.name}")
             href = row.href
             player_name = row.name
 
-            if (year, href) in done:
-                log(f"{href} {year} already processed", "SKIP")
+            log(f"{i}/{total_players}  Processing: {player_name}")
+
+            if scraped_today(year, href):
+                log(f"{href} {year} already scraped today", "SKIP")
                 continue
 
             url = href.replace(".html", f"/gamelog/{year}")
             log(f"Scraping gamelog: {url}")
 
             html, driver = fetch_html(driver, url)
+
+            # Mark as attempted today (prevents re-hitting dead pages in same day)
+            progress[_key(year, href)] = today
+            save_gamelog_progress(progress)
+
             if not html:
-                log(f"Empty HTML for {href} {year}. Skipping.", "WARN")
-                done.add((year, href))
-                save_gamelog_progress(done)
+                log(f"Empty/blocked HTML for {href} {year}. Skipping.", "WARN")
+                time.sleep(delay + (0.5 * (i % 3)))  # jitter
                 continue
 
             new_games = parse_gamelog_page(html=html, player_name=player_name, href=href, season=year)
@@ -233,17 +312,13 @@ def get_gamelogs(
                         unique_new.append(g)
 
                 if unique_new:
-                    games.extend(unique_new)
                     df = pd.DataFrame(unique_new)
-
                     mode = "a" if file_initialized else "w"
                     df.to_csv(out_path, mode=mode, index=False, header=not file_initialized)
                     file_initialized = True
+                    games.extend(unique_new)
 
-            done.add((year, href))
-            save_gamelog_progress(done)
-
-            time.sleep(delay)
+            time.sleep(delay + (0.5 * (i % 3)))  # jitter
 
             if debug and new_games:
                 log("[DEBUG] Stopping after first player with data.", "DEBUG")
@@ -256,5 +331,5 @@ def get_gamelogs(
         except Exception:
             pass
 
-    log(f"Finished gamelog scraping for season {year}. Total games: {len(games)}")
+    log(f"Finished gamelog scraping for season {year}. Total games appended this run: {len(games)}")
     return games

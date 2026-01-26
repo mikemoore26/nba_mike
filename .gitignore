@@ -1,4 +1,8 @@
 ./data/
 ./main.py
 ./main.ipynb
-.venv/
+./venv/
+./venv_lp/
+./__pycache__/
+./*.pyc
+./models/
