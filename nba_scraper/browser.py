@@ -1,13 +1,9 @@
 # nba_scraper/browser.py
 from __future__ import annotations
 
+import random
 import time
-from typing import Iterable, Tuple, Optional
-
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import TimeoutException
-
+from typing import Optional
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -31,18 +27,19 @@ def wait_for_any(driver, css_selectors: list[str], timeout: float = 15.0) -> boo
         time.sleep(0.25)
     return False
 
-def create_driver() -> webdriver.Chrome:
+def create_driver(*, headless: bool = True) -> webdriver.Chrome:
     """
-    Create a headless Chrome driver configured for scraping.
+    Create a Chrome driver configured for scraping.
     pageLoadStrategy='eager' prevents long hangs waiting for every asset.
-    Blocks images/fonts for speed + fewer renderer hangs.
+    Blocks images/fonts for speed.
     """
     options = Options()
-    # options.add_argument("--headless=new")
-    # options.add_argument("--no-sandbox")
-    # options.add_argument("--disable-dev-shm-usage")
-    # options.add_argument("--disable-gpu")
-    # options.add_argument("--window-size=1920,1080")
+
+    if headless:
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-gpu")
+
+    options.add_argument("--window-size=1920,1080")
 
     # Return when DOM is ready-ish, not after every asset
     options.set_capability("pageLoadStrategy", "eager")
@@ -60,20 +57,40 @@ def create_driver() -> webdriver.Chrome:
     driver.set_script_timeout(30)
     return driver
 
-def fetch_html(driver, url: str, retries: int = 3, retry_delay: float = 5.0):
+
+def fetch_html(
+    driver: Optional[webdriver.Chrome],
+    url: str,
+    *,
+    retries: int = 3,
+    retry_delay: float = 5.0,
+    wait_for_css_any: Optional[list[str]] = None,
+    timeout: float = 15.0,
+    hard_restart_delay: float = 2.0,
+) -> tuple[str, webdriver.Chrome]:
+    """
+    Loads a URL and returns (html, driver). If driver is None, creates one.
+    Centralize ALL retry/backoff/driver-restart logic here.
+    """
+    if driver is None:
+        driver = create_driver()
+
+    wait_for_css_any = wait_for_css_any or ["body"]
+
     for attempt in range(1, retries + 1):
         try:
-            driver.set_page_load_timeout(25)
             driver.get(url)
 
-            wait_for_any(driver, ["#player_game_log_reg", "body"], timeout=15)
+            wait_for_any(driver, wait_for_css_any, timeout=timeout)
 
+            # stop extra asset loads (eager already helps)
             try:
                 driver.execute_script("window.stop();")
             except Exception:
                 pass
 
-            return driver.page_source or "", driver
+            html = driver.page_source or ""
+            return html, driver
 
         except Exception as e:
             msg = str(e)
@@ -98,26 +115,27 @@ def fetch_html(driver, url: str, retries: int = 3, retry_delay: float = 5.0):
             except Exception:
                 pass
 
-            time.sleep(2)
+            time.sleep(hard_restart_delay)
             driver = create_driver()
 
-            time.sleep(2 if hard_restart else retry_delay)
+            # jittered backoff
+            base = (hard_restart_delay if hard_restart else retry_delay)
+            sleep_s = base * attempt + random.uniform(0.25, 0.9)
+            time.sleep(sleep_s)
 
     return "", driver
 
-def get_page_source(url: str, retries: int = 3, delay: int = 5) -> str:
+def get_page_source(url: str, retries: int = 3, delay: float = 5.0) -> str:
     """
     Backwards-compatible wrapper: fetches HTML with a fresh driver per call.
-    (Your older code can keep using this, but the optimized path is fetch_html()).
     """
     driver = None
     try:
         html, driver = fetch_html(
-            driver=None,
-            url=url,
+            driver,
+            url,
             retries=retries,
-            delay=delay,
-            wait_seconds=10,
+            retry_delay=delay,
             wait_for_css_any=["body"],
         )
         return html

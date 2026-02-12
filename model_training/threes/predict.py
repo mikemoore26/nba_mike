@@ -1,9 +1,35 @@
-from features import build_features_no_leak, add_player_baselines
-from rate import compute_final_rate_bayes
-from attempts import expected_fg3a_ceiling
+# model_training/threes/predict.py
+from __future__ import annotations
+
+import numpy as np
 import pandas as pd
 import joblib
-import numpy as np
+
+from model_training.threes.probability import prob_ge_k, add_prob_ge_k  # noqa: F401
+from model_training.threes.features import (
+    build_features_no_leak,
+    add_player_baselines,
+    add_opp_3p_defense_features_roll,
+    add_team_stint_features,
+    FG3A_FEATURES,
+    RATE_FEATURES,  # backward compat only
+)
+from model_training.threes.today_row import build_today_rows, build_today_rows_v2
+
+
+def load_feature_sets(features_path: str):
+    feats_obj = joblib.load(features_path)
+
+    if isinstance(feats_obj, dict) and "FG3A_FEATURES" in feats_obj and "RATE_FEATURES" in feats_obj:
+        return feats_obj["FG3A_FEATURES"], feats_obj["RATE_FEATURES"]
+
+    if isinstance(feats_obj, (list, tuple)):
+        feats_list = list(feats_obj)
+        fg3a_feats = [c for c in FG3A_FEATURES if c in feats_list]
+        rate_feats = [c for c in RATE_FEATURES if c in feats_list]
+        return fg3a_feats, rate_feats
+
+    raise TypeError(f"Unsupported features artifact type: {type(feats_obj)}")
 
 
 def predict_game_fg3(
@@ -11,92 +37,127 @@ def predict_game_fg3(
     away_team: str,
     home_team: str,
     game_date,
-    fg3a_model_path,
-    features_path,
+    fg3a_model_path: str,
+    fg3_rate_model_path: str,
+    features_path: str,
     min_games_required: int = 10,
     recent_n: int = 5,
-    fg3a_blend: float = 0.25,   # 25% model FG3A, 75% expected FG3A
-):
-    fg3a_pipe = joblib.load(fg3a_model_path)
-    FEATURES = joblib.load(features_path)
+    fg3a_blend: float = 0.25,
+    use_v2: bool = True,
+    over_baseline_delta: float = 2.0,
+) -> pd.DataFrame:
+    # --- normalize matchup team tokens ------------------------------------
+    away_team = str(away_team).upper().strip()
+    home_team = str(home_team).upper().strip()
+    TEAM_MAP = {"NJN": "BKN", "CHO": "CHA"}  # only needed if your history uses legacy abbrevs
+    away_team = TEAM_MAP.get(away_team, away_team)
+    home_team = TEAM_MAP.get(home_team, home_team)
 
+    # --- load artifacts ----------------------------------------------------
+    fg3a_pipe = joblib.load(fg3a_model_path)
+    rate_model = joblib.load(fg3_rate_model_path)
+    FG3A_FEATS, RATE_FEATS = load_feature_sets(features_path)
+
+    # --- history normalize -------------------------------------------------
     history = history_df.copy()
-    history["date"] = pd.to_datetime(history["date"])
+    if "date" not in history.columns:
+        raise ValueError("history_df missing required column: 'date'")
+
+    history["date"] = pd.to_datetime(history["date"], errors="coerce")
+    history = history.dropna(subset=["date"]).copy()
+
+    # CRITICAL: normalize abbreviations (prevents 0 candidates due to casing/whitespace)
+    for c in ["team", "opp"]:
+        if c in history.columns:
+            history[c] = history[c].astype("string").str.upper().str.strip().replace(TEAM_MAP)
+
     history = history.sort_values(["player", "date"])
 
-    # players on either team (based on latest team)
-    latest_team = (
-        history.sort_values("date")
-              .groupby("player")
-              .tail(1)[["player", "team", "season"]]
-    )
-    players = latest_team[latest_team["team"].isin([away_team, home_team])]["player"].tolist()
+    # --- build today's rows (v2 strict -> v1 fallback) ---------------------
+    if use_v2:
+        try:
+            today_df = build_today_rows_v2(
+                history, away_team, home_team, game_date,
+                min_games_required=min_games_required,
+                recent_n=recent_n,
+            )
+        except ValueError:
+            # Fallback keeps daily pipeline alive when v2 filters are too strict
+            today_df = build_today_rows(
+                history, away_team, home_team, game_date,
+                min_games_required=max(3, min_games_required // 2),
+                recent_n=recent_n,
+            )
+    else:
+        today_df = build_today_rows(
+            history, away_team, home_team, game_date,
+            min_games_required=min_games_required,
+            recent_n=recent_n,
+        )
 
-    # require enough games
-    game_counts = history.groupby("player").size()
-    players = [p for p in players if game_counts.get(p, 0) >= min_games_required]
-
-    rows = []
-    for p in players:
-        ph = history[history["player"] == p].sort_values("date")
-        prev = ph.iloc[-1]
-
-        team = prev["team"]
-        is_home = 1 if team == home_team else 0
-        opp = away_team if is_home else home_team
-
-        rows.append({
-            "player": p,
-            "season": prev["season"],
-            "date": pd.Timestamp(game_date),
-            "team": team,
-            "opp": opp,
-
-            "mp_minutes": float(ph["mp_minutes"].tail(recent_n).mean()),
-            "fga": float(ph["fga"].tail(recent_n).mean()),
-            "fg3a": expected_fg3a_ceiling(ph, recent_n=recent_n),
-            "pts": float(ph["pts"].tail(recent_n).mean()),
-            "usage": float(ph["usage"].tail(recent_n).mean()),
-
-            "is_home": int(is_home),
-            "starter_flag": int(prev.get("starter_flag", 1)),
-
-            "fg3": np.nan,
-        })
-
-    today_df = pd.DataFrame(rows)
-    if today_df.empty:
-        raise ValueError("No eligible players found for this matchup.")
-
+    # --- feature build -----------------------------------------------------
     combined = pd.concat([history, today_df], ignore_index=True)
-
-    # Must exist in your environment
     combined = build_features_no_leak(combined)
+    combined = add_opp_3p_defense_features_roll(combined)
     combined = add_player_baselines(combined)
+    combined = add_team_stint_features(combined)
 
-    X_today = combined.tail(len(today_df))[FEATURES].copy().reset_index(drop=True)
+    X_today = combined.tail(len(today_df)).reset_index(drop=True)
     today_df = today_df.reset_index(drop=True)
 
-    # require only minutes rolling (avoid over-filtering)
-    mask = X_today[["min_rolling_5"]].notna().all(axis=1).to_numpy()
+    mask = (
+        X_today["min_rolling_5"].notna()
+        & X_today["player_min_season_avg"].notna()
+        & X_today["player_fg3a_season_avg"].notna()
+        & X_today["player_fg3_pct_season"].notna()
+    ).to_numpy()
 
     X_ok = X_today.loc[mask].copy()
     out = today_df.loc[mask, ["player", "team", "opp", "is_home", "fg3a"]].copy()
 
-    # --- FG3A: blend expected + model ---
-    model_fg3a = np.clip(fg3a_pipe.predict(X_ok), 0, None)
+    if out.empty:
+        raise ValueError("No eligible players after feature gating (min_rolling_5/baselines missing).")
+
+    # --- FG3A --------------------------------------------------------------
+    pred_fg3a_model = np.clip(fg3a_pipe.predict(X_ok[FG3A_FEATS]), 0, None)
+
+    # --- RATE (contract: probability) -------------------------------------
+    if hasattr(rate_model, "predict_p"):
+        pred_rate = rate_model.predict_p(X_ok)  # wrapper uses its own feature_names
+    else:
+        pred_rate = np.clip(rate_model.predict(X_ok[RATE_FEATS]), 0, 1)
+
+    pred_rate = np.clip(pred_rate, 0, 1)
+
+    # --- Blend heuristic attempts with model attempts ----------------------
     expected_fg3a = out["fg3a"].to_numpy()
-    final_fg3a = (1.0 - fg3a_blend) * expected_fg3a + fg3a_blend * model_fg3a
-    final_fg3a = np.clip(final_fg3a, 0, None)
+    pred_fg3a = (1.0 - fg3a_blend) * expected_fg3a + fg3a_blend * pred_fg3a_model
+    pred_fg3a = np.clip(pred_fg3a, 0, None)
 
-    # --- Rate: Bayesian computed ---
-    league_fg3_pct = history["fg3"].sum() / max(history["fg3a"].sum(), 1)
-    final_rate = np.array([compute_final_rate_bayes(X_ok.iloc[i], league_fg3_pct) for i in range(len(X_ok))])
+    mu = pred_fg3a * pred_rate
 
-    out["pred_fg3a"] = final_fg3a
-    out["pred_rate"] = final_rate
-    out["pred_fg3"] = out["pred_fg3a"] * out["pred_rate"]
+    baseline_fg3 = (
+        X_ok["player_fg3a_season_avg"].to_numpy()
+        * X_ok["player_fg3_pct_season"].to_numpy()
+    )
+    baseline_fg3 = np.clip(baseline_fg3, 0, None)
+
+    delta_fg3 = mu - baseline_fg3
+
+    threshold = np.ceil(baseline_fg3 + over_baseline_delta).astype(int)
+    p_over_baseline = prob_ge_k(mu, threshold)
+
+    out["pred_fg3a"] = pred_fg3a
+    out["pred_rate"] = pred_rate
+    out["pred_fg3"] = mu
+
+    out["baseline_fg3"] = baseline_fg3
+    out["delta_fg3"] = delta_fg3
+    out[f"p_over_baseline_{int(over_baseline_delta)}"] = p_over_baseline
 
     out = out.drop(columns=["fg3a"])
-    return out.sort_values("pred_fg3", ascending=False).reset_index(drop=True)
 
+    return out.sort_values(
+        [f"p_over_baseline_{int(over_baseline_delta)}", "delta_fg3"],
+        ascending=False
+    ).reset_index(drop=True)

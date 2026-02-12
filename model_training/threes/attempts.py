@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 def expected_fg3a_ceiling(ph: pd.DataFrame, recent_n: int = 5) -> float:
     """

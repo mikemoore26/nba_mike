@@ -1,0 +1,29 @@
+[
+  {
+    "game_id": "0022500789",
+    "game_date": "2026-02-12",
+    "away_team_id": 1610612749,
+    "home_team_id": 1610612760,
+    "away_abbrev": "MIL",
+    "home_abbrev": "OKC",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500790",
+    "game_date": "2026-02-12",
+    "away_team_id": 1610612757,
+    "home_team_id": 1610612762,
+    "away_abbrev": "POR",
+    "home_abbrev": "UTA",
+    "status_text": "9:00 pm ET"
+  },
+  {
+    "game_id": "0022500791",
+    "game_date": "2026-02-12",
+    "away_team_id": 1610612742,
+    "home_team_id": 1610612747,
+    "away_abbrev": "DAL",
+    "home_abbrev": "LAL",
+    "status_text": "10:00 pm ET"
+  }
+]
