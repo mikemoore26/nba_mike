@@ -20,6 +20,7 @@ from nba_scraper.storage import (
     write_gamelog_part,
 )
 
+from model_training.utils.team_codes import norm_team
 
 
 # --- Paths -------------------------------------------------------------------
@@ -92,6 +93,8 @@ def is_blocked_html(html: str) -> bool:
 
 # --- Parsing a single gamelog page ------------------------------------------
 
+# --- Parsing a single gamelog page ------------------------------------------
+
 def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -122,9 +125,12 @@ def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> l
         return cell.get_text(strip=True) if cell else ""
 
     for row in rows:
-        # skip separators / headers within tbody
+        # Skip separator rows
         if row.get("data-row") is None:
             continue
+
+        team_raw = get_stat(row, "team_name_abbr")
+        opp_raw = get_stat(row, "opp_name_abbr")
 
         games.append(
             {
@@ -132,8 +138,11 @@ def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> l
                 "href": href,
                 "season": season,
                 "date": get_stat(row, "date"),
-                "team": get_stat(row, "team_name_abbr"),
-                "opp": get_stat(row, "opp_name_abbr"),
+
+                # ✅ Canonical team normalization
+                "team": norm_team(team_raw),
+                "opp": norm_team(opp_raw),
+
                 "home_away": get_stat(row, "game_location"),
                 "result": get_stat(row, "game_result"),
                 "gs": get_stat(row, "gs"),
@@ -157,7 +166,6 @@ def parse_gamelog_page(html: str, player_name: str, href: str, season: int) -> l
         )
 
     return games
-
 
 # --- High level scrape function ---------------------------------------------
 

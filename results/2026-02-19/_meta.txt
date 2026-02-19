@@ -1,0 +1,2 @@
+[INFO] schedule_date=2026-02-19 beyond history max date=2026-02-12.
+       Using model_date=2026-02-12 for features/predictions (likely ASB / no new logs).

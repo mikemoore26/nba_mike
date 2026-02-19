@@ -1,0 +1,92 @@
+[
+  {
+    "game_id": "0022500792",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612745,
+    "home_team_id": 1610612766,
+    "away_abbrev": "HOU",
+    "home_abbrev": "CHA",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500793",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612751,
+    "home_team_id": 1610612739,
+    "away_abbrev": "BKN",
+    "home_abbrev": "CLE",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500794",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612737,
+    "home_team_id": 1610612755,
+    "away_abbrev": "ATL",
+    "home_abbrev": "PHI",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500795",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612754,
+    "home_team_id": 1610612764,
+    "away_abbrev": "IND",
+    "home_abbrev": "WAS",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500796",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612765,
+    "home_team_id": 1610612752,
+    "away_abbrev": "DET",
+    "home_abbrev": "NYK",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500797",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612761,
+    "home_team_id": 1610612741,
+    "away_abbrev": "TOR",
+    "home_abbrev": "CHI",
+    "status_text": "8:00 pm ET"
+  },
+  {
+    "game_id": "0022500798",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612756,
+    "home_team_id": 1610612759,
+    "away_abbrev": "PHX",
+    "home_abbrev": "SAS",
+    "status_text": "8:30 pm ET"
+  },
+  {
+    "game_id": "0022500799",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612738,
+    "home_team_id": 1610612744,
+    "away_abbrev": "BOS",
+    "home_abbrev": "GSW",
+    "status_text": "10:00 pm ET"
+  },
+  {
+    "game_id": "0022500800",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612753,
+    "home_team_id": 1610612758,
+    "away_abbrev": "ORL",
+    "home_abbrev": "SAC",
+    "status_text": "10:00 pm ET"
+  },
+  {
+    "game_id": "0022500801",
+    "game_date": "2026-02-19",
+    "away_team_id": 1610612743,
+    "home_team_id": 1610612746,
+    "away_abbrev": "DEN",
+    "home_abbrev": "LAC",
+    "status_text": "10:30 pm ET"
+  }
+]

@@ -9,7 +9,8 @@ import pandas as pd
 from nba_scraper.schedule import get_todays_games_cached
 from model_training.threes.predict import predict_game_fg3
 from model_training.threes.probability import add_prob_ge_k
-from model_training.config import PATH_GAMLOGS_COMBINED, PATH_TO_MODEL_dir
+from model_training.config import PATH_GAMLOGS_COMBINED, THREES_MODEL_DIR
+from model_training.utils.team_codes import norm_team
 
 
 def main(*, use_tomorrow: bool = False, rebuild_history: bool = False) -> None:
@@ -51,7 +52,7 @@ def main(*, use_tomorrow: bool = False, rebuild_history: bool = False) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # --- model paths -------------------------------------------------------
-    model_dir = Path(PATH_TO_MODEL_dir) if not isinstance(PATH_TO_MODEL_dir, Path) else PATH_TO_MODEL_dir
+    model_dir = Path(THREES_MODEL_DIR) if not isinstance(THREES_MODEL_DIR, Path) else THREES_MODEL_DIR
     fg3a_model_path = model_dir / "fg3a_model.joblib"
     fg3_rate_model_path = model_dir / "fg3_rate_model.joblib"
     features_path = model_dir / "features.joblib"
@@ -64,8 +65,9 @@ def main(*, use_tomorrow: bool = False, rebuild_history: bool = False) -> None:
     all_res: list[pd.DataFrame] = []
 
     for g in df_games.itertuples(index=False):
-        away = str(g.away_abbrev).upper()
-        home = str(g.home_abbrev).upper()
+        away = norm_team(g.away_abbrev)
+        home = norm_team(g.home_abbrev)
+
 
         if not away or not home or away == "NAN" or home == "NAN":
             continue

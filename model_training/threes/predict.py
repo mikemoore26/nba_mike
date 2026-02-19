@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 import joblib
 
+from model_training.utils.team_codes import norm_team
+
+
 from model_training.threes.probability import prob_ge_k, add_prob_ge_k  # noqa: F401
 from model_training.threes.features import (
     build_features_no_leak,
@@ -47,6 +50,8 @@ def predict_game_fg3(
     over_baseline_delta: float = 2.0,
 ) -> pd.DataFrame:
     # --- normalize matchup team tokens ------------------------------------
+    away_team = norm_team(away_team)
+    home_team = norm_team(home_team)
     away_team = str(away_team).upper().strip()
     home_team = str(home_team).upper().strip()
     TEAM_MAP = {"NJN": "BKN", "CHO": "CHA"}  # only needed if your history uses legacy abbrevs
@@ -72,6 +77,11 @@ def predict_game_fg3(
             history[c] = history[c].astype("string").str.upper().str.strip().replace(TEAM_MAP)
 
     history = history.sort_values(["player", "date"])
+
+    for c in ["team", "opp"]:
+        if c in history.columns:
+            history[c] = history[c].astype("string").map(norm_team)
+
 
     # --- build today's rows (v2 strict -> v1 fallback) ---------------------
     if use_v2:
@@ -156,6 +166,10 @@ def predict_game_fg3(
     out[f"p_over_baseline_{int(over_baseline_delta)}"] = p_over_baseline
 
     out = out.drop(columns=["fg3a"])
+
+    for c in ["__is_today", "__today_order"]:
+        if c in out.columns:
+            out.drop(columns=[c], inplace=True)
 
     return out.sort_values(
         [f"p_over_baseline_{int(over_baseline_delta)}", "delta_fg3"],
