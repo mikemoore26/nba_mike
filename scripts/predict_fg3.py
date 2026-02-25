@@ -11,6 +11,8 @@ from model_training.threes.today_row import build_today_rows, build_today_rows_v
 from model_training.threes.features import build_all_threes_features  # <- use the one-stop builder
 from model_training.threes.probability import prob_ge_k
 
+from model_training.common.feature_table import load_gamelogs, build_feature_table
+
 
 def load_feature_sets(features_path: str):
     feats_obj = joblib.load(features_path)
