@@ -6,9 +6,8 @@ import numpy as np
 import pandas as pd
 
 from model_training.threes.today_row import build_today_rows, build_today_rows_v2
-from model_training.threes.features import build_all_threes_features  # one-stop builder
+from model_training.threes.features import build_all_threes_features
 from model_training.threes.probability import prob_ge_k
-
 from model_training.common.eligibility import apply_eligibility_gate
 
 
@@ -45,8 +44,7 @@ def _coerce_id_types(df: pd.DataFrame) -> pd.DataFrame:
         if c in out.columns:
             out[c] = out[c].astype("string")
     if "is_home" in out.columns:
-        # keep as int/bool friendly
-        out["is_home"] = out["is_home"].astype(int, errors="ignore") if hasattr(out["is_home"], "astype") else out["is_home"]
+        out["is_home"] = pd.to_numeric(out["is_home"], errors="coerce").fillna(0).astype(int)
     return out
 
 
@@ -61,7 +59,6 @@ def load_feature_sets(features_path: str) -> tuple[list[str], list[str]]:
     if isinstance(feats_obj, dict) and "FG3A_FEATURES" in feats_obj and "RATE_FEATURES" in feats_obj:
         return list(feats_obj["FG3A_FEATURES"]), list(feats_obj["RATE_FEATURES"])
 
-    # backward compat: older artifacts saved a single list
     if isinstance(feats_obj, (list, tuple)):
         feats_list = list(feats_obj)
         try:
@@ -97,30 +94,15 @@ def predict_game_fg3(
     min_games_prior_gate: int | None = None,
     min_expected_min_gate: float | None = None,
 ) -> pd.DataFrame:
-    """
-    Predicts:
-      - pred_fg3a (blended attempts)
-      - pred_rate (3P% rate)
-      - pred_fg3 (mu = attempts * rate)
-      - baseline_fg3, delta_fg3
-      - p_over_baseline_{delta}
-
-    Leakage notes:
-      - history is strictly historical game logs
-      - today rows are appended then features are built once on combined
-      - gating uses leakage-safe prior game count (cumcount) and/or expected minutes proxy if present
-    """
     fg3a_pipe = joblib.load(fg3a_model_path)
     rate_pipe = joblib.load(fg3_rate_model_path)
     FG3A_FEATS, RATE_FEATS = load_feature_sets(threes_features_path)
 
     # ---- canonicalize history ----
     history = _ensure_date_cols(history_df)
-    history = history.dropna(subset=["date"]).copy()
+    history = history.dropna(subset=["game_date"]).copy()
     history = _coerce_id_types(history)
-
-    # stable sort for rolling features / cumcount gating
-    history = history.sort_values(["player", "date"], kind="mergesort").reset_index(drop=True)
+    history = history.sort_values(["player", "game_date"], kind="mergesort").reset_index(drop=True)
 
     # ---- build today rows ----
     if use_v2:
@@ -148,85 +130,45 @@ def predict_game_fg3(
     # ---- combine + feature build ----
     combined = pd.concat([history, today_df], ignore_index=True)
     combined = _ensure_date_cols(combined)
-    combined = combined.sort_values(["player", "date"], kind="mergesort").reset_index(drop=True)
+    combined = combined.sort_values(["player", "game_date"], kind="mergesort").reset_index(drop=True)
 
-    # ONE STOP: rolling + baselines + opp context (must be no-leak inside builder)
     combined = build_all_threes_features(combined)
 
-    # slice out today's feature rows (same order as today_df by construction)
+    # slice out today's feature rows
     X_today = combined.tail(len(today_df)).reset_index(drop=True)
     today_df = today_df.reset_index(drop=True)
 
-    # ---- gating (replace fragile hand-mask with shared gate + explicit reasons) ----
-    # If user didn't set a gate, keep your old behavior-ish:
-    # - min_games_required already enforced in build_today_rows, but we still gate for missing baselines.
+    # ---- unified gating (history/minutes/required baselines in one place) ----
     if min_games_prior_gate is None:
-        # keep consistent with earlier default min_games_required
         min_games_prior_gate = min_games_required
 
-    X_today_gated, rejects = apply_eligibility_gate(
-        X_today,
-        min_games_prior=int(min_games_prior_gate),
-        min_expected_min=min_expected_min_gate,
-        expected_min_col="expected_min_10",
-    )
-
-    if X_today_gated.empty:
-        raise ValueError(
-            "No eligible players after gating.\n"
-            f"away={away_team} home={home_team} game_date={game_date}\n"
-            "Sample rejects:\n" + rejects.head(25).to_string(index=False)
-        )
-
-    # Also require key baselines for stable baseline math / rate model
-    req_baselines = [
+    req_cols = [
         "min_rolling_5",
         "player_min_season_avg",
         "player_fg3a_season_avg",
         "player_fg3_pct_season",
     ]
-    miss = [c for c in req_baselines if c not in X_today_gated.columns]
-    if miss:
-        raise ValueError(f"Missing required baseline cols in X_today after feature build: {miss}")
 
-    baseline_mask = (
-        X_today_gated["min_rolling_5"].notna()
-        & X_today_gated["player_min_season_avg"].notna()
-        & X_today_gated["player_fg3a_season_avg"].notna()
-        & X_today_gated["player_fg3_pct_season"].notna()
-    ).to_numpy()
+    X_ok, rejects = apply_eligibility_gate(
+        X_today,
+        min_games_prior=int(min_games_prior_gate),
+        min_expected_min=min_expected_min_gate,
+        expected_min_col="expected_min_10",
+        require_cols=req_cols,
+    )
 
-    X_ok = X_today_gated.loc[baseline_mask].copy()
     if X_ok.empty:
-        # keep explicit; this is where you used to silently die
-        sample = X_today_gated.loc[~baseline_mask, ["player", "team", "opp", "is_home"]].head(25)
         raise ValueError(
-            "All eligible players failed baseline availability checks.\n"
-            f"Missing/NaN in: {req_baselines}\n"
-            "Sample failed rows:\n" + sample.to_string(index=False)
+            "No eligible players after gating (history/minutes/required baselines).\n"
+            f"away={away_team} home={home_team} game_date={game_date}\n"
+            "Sample rejects:\n" + rejects.head(25).to_string(index=False)
         )
 
-    # Align outputs to X_ok rows
-    # NOTE: today_df might be longer than X_today_gated; we map by index via original X_today row index.
-    # We preserved index through apply_eligibility_gate (it returns copies with same index).
-    out_cols = [c for c in ["player", "team", "opp", "is_home", "fg3a"] if c in today_df.columns]
-    # safer: take from X_ok if fg3a is not present in today_df (depends on your today_row builder)
-    if "fg3a" not in today_df.columns and "fg3a" in X_ok.columns:
-        out_cols = [c for c in ["player", "team", "opp", "is_home"] if c in X_ok.columns] + ["fg3a"]
+    # Align outputs: X_ok rows correspond to subset of X_today (same order/index after reset)
+    # Since we reset_index on X_today/today_df, we must subset by integer index positions.
+    out = today_df.loc[X_ok.index, ["player", "team", "opp", "is_home", "fg3a"]].copy()
 
-    if "fg3a" in out_cols and "fg3a" not in today_df.columns:
-        out = X_ok[out_cols].copy()
-    else:
-        # reindex today_df to X_ok index where possible
-        # If today_df has default RangeIndex, we fall back to X_ok for ids.
-        try:
-            out = today_df.loc[X_ok.index, out_cols].copy()
-        except Exception:
-            out = X_ok[[c for c in ["player", "team", "opp", "is_home"] if c in X_ok.columns]].copy()
-            if "fg3a" in X_ok.columns:
-                out["fg3a"] = X_ok["fg3a"].to_numpy()
-
-    # ---- feature list checks (fail loud, not silent) ----
+    # ---- feature list checks (fail loud) ----
     missing_fg3a = [c for c in FG3A_FEATS if c not in X_ok.columns]
     missing_rate = [c for c in RATE_FEATS if c not in X_ok.columns]
     if missing_fg3a or missing_rate:
@@ -240,21 +182,15 @@ def predict_game_fg3(
     # ---- model predictions ----
     pred_fg3a_model = np.clip(fg3a_pipe.predict(X_ok[FG3A_FEATS]), 0, None)
 
-    # Rate model: may return prob already depending on wrapper
     pred_rate = rate_pipe.predict(X_ok[RATE_FEATS])
     pred_rate = np.clip(np.asarray(pred_rate, dtype=float), 0, 1)
 
-    # Blend heuristic attempts (expected from today rows) with model attempts
-    if "fg3a" not in out.columns:
-        raise ValueError("today rows must provide 'fg3a' heuristic attempts column for blending.")
     expected_fg3a = out["fg3a"].to_numpy(dtype=float)
-
     pred_fg3a = (1.0 - float(fg3a_blend)) * expected_fg3a + float(fg3a_blend) * pred_fg3a_model
     pred_fg3a = np.clip(pred_fg3a, 0, None)
 
     mu = pred_fg3a * pred_rate
 
-    # ---- baseline + delta + probability ----
     baseline_fg3 = (
         X_ok["player_fg3a_season_avg"].to_numpy(dtype=float)
         * X_ok["player_fg3_pct_season"].to_numpy(dtype=float)
@@ -266,7 +202,6 @@ def predict_game_fg3(
     threshold = np.ceil(baseline_fg3 + float(over_baseline_delta)).astype(int)
     p_over_baseline = prob_ge_k(mu, threshold)
 
-    # ---- assemble output ----
     out = out.drop(columns=["fg3a"], errors="ignore")
     out["pred_fg3a"] = pred_fg3a
     out["pred_rate"] = pred_rate
@@ -275,10 +210,7 @@ def predict_game_fg3(
     out["delta_fg3"] = delta_fg3
     out[f"p_over_baseline_{int(over_baseline_delta)}"] = p_over_baseline
 
-    return (
-        out.sort_values(
-            [f"p_over_baseline_{int(over_baseline_delta)}", "delta_fg3"],
-            ascending=False,
-        )
-        .reset_index(drop=True)
-    )
+    return out.sort_values(
+        [f"p_over_baseline_{int(over_baseline_delta)}", "delta_fg3"],
+        ascending=False,
+    ).reset_index(drop=True)
