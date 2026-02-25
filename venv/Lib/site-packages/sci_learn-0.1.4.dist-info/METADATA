@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: sci_learn
+Version: 0.1.4
+Summary: Random forest query enhancer using AI techniques
+Home-page: https://github.com/shaheerzk01/random_forest.git
+Author: Shaheer Zaman
+Author-email: shaheerzk@gmail.com
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Requires-Dist: openai==0.28.0
+

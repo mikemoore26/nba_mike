@@ -15,3 +15,4 @@ MODELS_ROOT = Path("./models")
 
 THREES_MODEL_DIR = MODELS_ROOT / "threes"
 POINTS_MODEL_DIR = MODELS_ROOT / "points"
+REBOUNDS_MODEL_DIR = MODELS_ROOT / "rebounds"

@@ -1,103 +1,133 @@
-# scripts/predict_fg3.py
+# model_training/threes/predict.py
+# Replace your imports at top with this (safe + aligned)
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from pathlib import Path
-
+import numpy as np
 import pandas as pd
+import joblib
 
-from nba_scraper.schedule import get_todays_games_cached
-from model_training.threes.predict import predict_game_fg3
-from model_training.threes.probability import add_prob_ge_k
-from model_training.config import PATH_GAMLOGS_COMBINED, THREES_MODEL_DIR
-from model_training.utils.team_codes import norm_team
+from model_training.threes.today_row import build_today_rows, build_today_rows_v2
+from model_training.threes.features import build_all_threes_features  # <- use the one-stop builder
+from model_training.threes.probability import prob_ge_k
 
 
-def main(*, use_tomorrow: bool = False, rebuild_history: bool = False) -> None:
-    # --- choose date -------------------------------------------------------
-    base_dt = datetime.today() + (timedelta(days=1) if use_tomorrow else timedelta(days=0))
-    date_use = base_dt.strftime("%Y-%m-%d")
+def load_feature_sets(features_path: str):
+    feats_obj = joblib.load(features_path)
 
-    # --- load schedule inside main ----------------------------------------
-    df_games = get_todays_games_cached(cache_dir=Path("./data/cache"), game_date=base_dt.date())
-    if df_games.empty:
-        print(f"[INFO] No games found for {date_use}.")
-        return
+    if isinstance(feats_obj, dict) and "FG3A_FEATURES" in feats_obj and "RATE_FEATURES" in feats_obj:
+        return feats_obj["FG3A_FEATURES"], feats_obj["RATE_FEATURES"]
 
-    print(df_games[["away_abbrev", "home_abbrev", "status_text", "game_id"]])
+    # backward compat: older artifacts saved a single list
+    if isinstance(feats_obj, (list, tuple)):
+        feats_list = list(feats_obj)
+        # if you still have these lists in features.py, import them; otherwise just use feats_list for both
+        try:
+            from model_training.threes.features import FG3A_FEATURES, RATE_FEATURES
+            fg3a_feats = [c for c in FG3A_FEATURES if c in feats_list]
+            rate_feats = [c for c in RATE_FEATURES if c in feats_list]
+        except Exception:
+            fg3a_feats = feats_list
+            rate_feats = feats_list
+        return fg3a_feats, rate_feats
 
-    # --- history (READ ONLY by default) -----------------------------------
-    combined_path = Path(PATH_GAMLOGS_COMBINED) if not isinstance(PATH_GAMLOGS_COMBINED, Path) else PATH_GAMLOGS_COMBINED
-    if rebuild_history:
-        # optional manual rebuild; do NOT do this by default
-        from model_training.data_loading import build_all_gamelogs_combined
-        build_all_gamelogs_combined(write_combined_csv=True)
+    raise TypeError(f"Unsupported features artifact type: {type(feats_obj)}")
 
-    if not combined_path.exists():
-        raise FileNotFoundError(
-            f"Missing combined gamelogs CSV: {combined_path}\n"
-            "Run: python -m scripts.train_models_3p (or rebuild_history=True once)."
+
+def predict_game_fg3(
+    history_df: pd.DataFrame,
+    away_team: str,
+    home_team: str,
+    game_date,
+    fg3a_model_path: str,
+    fg3_rate_model_path: str,
+    features_path: str,
+    min_games_required: int = 10,
+    recent_n: int = 5,
+    fg3a_blend: float = 0.25,
+    use_v2: bool = True,
+    over_baseline_delta: float = 2.0,
+) -> pd.DataFrame:
+    fg3a_pipe = joblib.load(fg3a_model_path)
+    rate_pipe = joblib.load(fg3_rate_model_path)
+    FG3A_FEATS, RATE_FEATS = load_feature_sets(features_path)
+
+    history = history_df.copy()
+    history["date"] = pd.to_datetime(history["date"])
+    history["team"] = history["team"].astype("string")
+    history["opp"] = history["opp"].astype("string")
+    history["player"] = history["player"].astype("string")
+    history = history.sort_values(["player", "date"])
+
+    if use_v2:
+        today_df = build_today_rows_v2(
+            history, away_team, home_team, game_date,
+            min_games_required=min_games_required,
+            recent_n=recent_n,
         )
-
-    history_df = pd.read_csv(combined_path)
-    if "date" not in history_df.columns:
-        raise ValueError(f"'date' column missing from {combined_path}")
-    history_df["date"] = pd.to_datetime(history_df["date"], errors="coerce")
-    history_df = history_df.dropna(subset=["date"]).copy()
-    if history_df.empty:
-        raise ValueError(f"{combined_path} contains 0 valid rows after parsing 'date'")
-
-    # --- output dir --------------------------------------------------------
-    out_dir = Path("results") / date_use
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # --- model paths -------------------------------------------------------
-    model_dir = Path(THREES_MODEL_DIR) if not isinstance(THREES_MODEL_DIR, Path) else THREES_MODEL_DIR
-    fg3a_model_path = model_dir / "fg3a_model.joblib"
-    fg3_rate_model_path = model_dir / "fg3_rate_model.joblib"
-    features_path = model_dir / "features.joblib"
-
-    for p in [fg3a_model_path, fg3_rate_model_path, features_path]:
-        if not p.exists():
-            raise FileNotFoundError(f"Missing model artifact: {p}")
-
-    # --- run predictions ---------------------------------------------------
-    all_res: list[pd.DataFrame] = []
-
-    for g in df_games.itertuples(index=False):
-        away = norm_team(g.away_abbrev)
-        home = norm_team(g.home_abbrev)
-
-
-        if not away or not home or away == "NAN" or home == "NAN":
-            continue
-
-        out = predict_game_fg3(
-            history_df=history_df,
-            away_team=away,
-            home_team=home,
-            game_date=date_use,
-            fg3a_model_path=str(fg3a_model_path),
-            fg3_rate_model_path=str(fg3_rate_model_path),
-            features_path=str(features_path),
-        )
-
-        out.sort_values("pred_fg3", ascending=False, inplace=True)
-        out.to_csv(out_dir / f"{away}_at_{home}_fg3_predictions.csv", index=False)
-
-        out2 = add_prob_ge_k(out, k=2)
-        out2 = add_prob_ge_k(out2, k=3)
-        out2.to_csv(out_dir / f"{away}_at_{home}_p2_p3.csv", index=False)
-
-        all_res.append(out2)
-
-    if all_res:
-        all_df = pd.concat(all_res, ignore_index=True)
-        all_df.to_csv(out_dir / "all_matchups_fg3_predictions.csv", index=False)
-        print(f"[INFO] Wrote combined results -> {out_dir / 'all_matchups_fg3_predictions.csv'}")
     else:
-        print("[WARN] No matchup outputs were produced.")
+        today_df = build_today_rows(
+            history, away_team, home_team, game_date,
+            min_games_required=min_games_required,
+            recent_n=recent_n,
+        )
 
+    combined = pd.concat([history, today_df], ignore_index=True)
 
-if __name__ == "__main__":
-    main(use_tomorrow=False, rebuild_history=False)
+    # ONE STOP: builds all rolling + baselines + stint + opp defense
+    combined = build_all_threes_features(combined)
+
+    X_today = combined.tail(len(today_df)).reset_index(drop=True)
+    today_df = today_df.reset_index(drop=True)
+
+    # Guard: stable baseline + minutes signal
+    mask = (
+        X_today["min_rolling_5"].notna()
+        & X_today["player_min_season_avg"].notna()
+        & X_today["player_fg3a_season_avg"].notna()
+        & X_today["player_fg3_pct_season"].notna()
+    ).to_numpy()
+
+    X_ok = X_today.loc[mask].copy()
+    out = today_df.loc[mask, ["player", "team", "opp", "is_home", "fg3a"]].copy()
+
+    # Model predictions
+    pred_fg3a_model = np.clip(fg3a_pipe.predict(X_ok[FG3A_FEATS]), 0, None)
+
+    # NOTE: if your rate model is saved as LogitRateWrapper, .predict returns prob already.
+    pred_rate = rate_pipe.predict(X_ok[RATE_FEATS])
+    pred_rate = np.clip(np.asarray(pred_rate, dtype=float), 0, 1)
+
+    # Blend heuristic attempts with model attempts
+    expected_fg3a = out["fg3a"].to_numpy(dtype=float)
+    pred_fg3a = (1.0 - fg3a_blend) * expected_fg3a + fg3a_blend * pred_fg3a_model
+    pred_fg3a = np.clip(pred_fg3a, 0, None)
+
+    mu = pred_fg3a * pred_rate
+
+    # Baseline expectation (player normal)
+    baseline_fg3 = (
+        X_ok["player_fg3a_season_avg"].to_numpy(dtype=float)
+        * X_ok["player_fg3_pct_season"].to_numpy(dtype=float)
+    )
+    baseline_fg3 = np.clip(baseline_fg3, 0, None)
+
+    delta_fg3 = mu - baseline_fg3
+
+    # Probability of beating baseline by +delta
+    threshold = np.ceil(baseline_fg3 + float(over_baseline_delta)).astype(int)
+    p_over_baseline = prob_ge_k(mu, threshold)
+
+    out["pred_fg3a"] = pred_fg3a
+    out["pred_rate"] = pred_rate
+    out["pred_fg3"] = mu
+    out["baseline_fg3"] = baseline_fg3
+    out["delta_fg3"] = delta_fg3
+    out[f"p_over_baseline_{int(over_baseline_delta)}"] = p_over_baseline
+
+    out = out.drop(columns=["fg3a"])
+
+    return out.sort_values(
+        [f"p_over_baseline_{int(over_baseline_delta)}", "delta_fg3"],
+        ascending=False
+    ).reset_index(drop=True)

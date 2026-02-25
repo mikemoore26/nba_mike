@@ -1,0 +1,83 @@
+[
+  {
+    "game_id": "0022500802",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612739,
+    "home_team_id": 1610612766,
+    "away_abbrev": "CLE",
+    "home_abbrev": "CHA",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500803",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612754,
+    "home_team_id": 1610612764,
+    "away_abbrev": "IND",
+    "home_abbrev": "WAS",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500804",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612762,
+    "home_team_id": 1610612763,
+    "away_abbrev": "UTA",
+    "home_abbrev": "MEM",
+    "status_text": "7:00 pm ET"
+  },
+  {
+    "game_id": "0022500805",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612748,
+    "home_team_id": 1610612737,
+    "away_abbrev": "MIA",
+    "home_abbrev": "ATL",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500806",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612742,
+    "home_team_id": 1610612750,
+    "away_abbrev": "DAL",
+    "home_abbrev": "MIN",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500807",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612749,
+    "home_team_id": 1610612740,
+    "away_abbrev": "MIL",
+    "home_abbrev": "NOP",
+    "status_text": "8:00 pm ET"
+  },
+  {
+    "game_id": "0022500808",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612751,
+    "home_team_id": 1610612760,
+    "away_abbrev": "BKN",
+    "home_abbrev": "OKC",
+    "status_text": "8:00 pm ET"
+  },
+  {
+    "game_id": "0022500809",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612746,
+    "home_team_id": 1610612747,
+    "away_abbrev": "LAC",
+    "home_abbrev": "LAL",
+    "status_text": "10:00 pm ET"
+  },
+  {
+    "game_id": "0022500810",
+    "game_date": "2026-02-20",
+    "away_team_id": 1610612743,
+    "home_team_id": 1610612757,
+    "away_abbrev": "DEN",
+    "home_abbrev": "POR",
+    "status_text": "10:00 pm ET"
+  }
+]

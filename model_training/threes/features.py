@@ -1,328 +1,321 @@
 # model_training/threes/features.py
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
-# ----------------------------
-# Feature lists (single source of truth)
-# ----------------------------
-# NOTE:
-# - We keep `starter_prob_10` for backward compatibility, but the meaning is really
-#   "minutes share proxy" (expected minutes / 36). Prefer `min_share_10` going forward.
+
+
+# ------------------------------------------------------------
+# Feature lists (keep/edit to match your project)
+# ------------------------------------------------------------
+# NOTE: These lists must match what you train with.
+# If you already define them elsewhere, keep those and remove these.
 
 FG3A_FEATURES = [
-    # recent form (volume + role)
+    # role/volume signals
     "min_rolling_5",
     "fga_rolling_5",
     "fg3a_rolling_5",
-    "expected_min_10",
-    "min_share_10",
-    # baselines (identity)
+
+    # player baselines (season to date)
     "player_fg3a_season_avg",
     "player_min_season_avg",
     "player_usage_season",
-    # change signals (role shift)
-    "fg3a_delta_5",
-    "min_delta_5",
-    # context (pregame-known)
+
+    # context
     "home_game",
     "days_rest",
     "back_to_back",
-    # backward compat
-    "starter_prob_10",
-]
+    "starter_flag",
 
-
-
-RATE_FEATURES = [
-    # recent form (accuracy) + confidence
-    "fg3_pct_rolling_10",
-    "fg3_att_rolling_10",
-    # baseline (stabilized)
-    "player_fg3_pct_season",
-    # role proxy
-    "expected_min_10",
-    "min_share_10",
-    # context (pregame-known)
-    "home_game",
-    "days_rest",
-    "back_to_back",
-    # backward compat
-    "starter_prob_10",
-]
-
-OPP_3P_DEF_FEATURES = [
+    # NEW: stint/team change
     "games_played_to_date",
+    "team_games_in_stint_to_date",
+    "new_team_game",
+    "recent_team_change_5",
+
+    # NEW: opponent 3P defense allowed-to-date
     "opp_fg3a_allowed_pg_to_date",
     "opp_fg3m_allowed_pg_to_date",
     "opp_3p_pct_allowed_to_date",
     "opp_def_3p_rank_to_date",
 ]
 
-TEAM_STINT_FEATURES = [
-    "team_games_in_stint_to_date",
-    "new_team_game",
-    "recent_team_change_5",
+RATE_FEATURES = [
+    "fg3_pct_rolling_10",
+    "fg3_att_rolling_10",
+    "player_fg3_pct_season",
+    "home_game",
+    "days_rest",
+    "back_to_back",
+    "starter_prob_10",
 ]
 
-# Then extend your model feature sets
-FG3A_FEATURES = FG3A_FEATURES + OPP_3P_DEF_FEATURES + TEAM_STINT_FEATURES
-RATE_FEATURES = RATE_FEATURES + OPP_3P_DEF_FEATURES + TEAM_STINT_FEATURES
 
-
-
-
-
-# model_training/threes/features.py
-import numpy as np
-import pandas as pd
-
-def add_team_stint_features(
-    df: pd.DataFrame,
-    *,
-    player_col: str = "player",
-    team_col: str = "team",
-    date_col: str = "date",
-    recent_k: int = 5,
-) -> pd.DataFrame:
-    """
-    Leakage-safe "consecutive games with current team" features.
-
-    Definitions (per player row at date t):
-      - team_games_in_stint_to_date:
-          number of prior games in the current team stint (0 for first game on team)
-      - new_team_game:
-          1 if first game of a new team stint, else 0
-      - recent_team_change_5:
-          1 if player changed teams within the last `recent_k` games (pregame-known), else 0
-
-    Requires columns: player, team, date
-    """
-    out = df.copy()
-    out[date_col] = pd.to_datetime(out[date_col])
-    out = out.sort_values([player_col, date_col])
-
-    g = out.groupby(player_col, sort=False)
-
-    # Detect team change (this game vs previous game)
-    prev_team = g[team_col].shift(1)
-    changed_team = (out[team_col] != prev_team) & prev_team.notna()
-
-    # Stint id increments whenever team changes (first game -> stint 0)
-    # Use cumsum over the boolean change flag within player
-    out["_team_stint_id"] = g.apply(lambda x: (x[team_col].ne(x[team_col].shift(1)) & x[team_col].shift(1).notna()).cumsum())\
-                             .reset_index(level=0, drop=True)
-
-    # Game index within stint (0,1,2...) including this game
-    out["_game_in_stint"] = out.groupby([player_col, "_team_stint_id"], sort=False).cumcount()
-
-    # Leakage-safe: number of prior games in this stint (shifted by 1)
-    out["team_games_in_stint_to_date"] = out["_game_in_stint"].astype(float)
-
-    # First game with new team stint (pregame-known from prior logs)
-    out["new_team_game"] = (out["team_games_in_stint_to_date"] == 0).astype(int)
-
-    # "Changed teams within last K games" — pregame-known:
-    # look back at the last K *prior* games and see if any had a team change event.
-    # (changed_team marks changes at that prior game relative to its previous game)
-    out["_changed_team_flag"] = changed_team.astype(int)
-    out["recent_team_change_5"] = (
-        g["_changed_team_flag"].shift(1).rolling(recent_k, min_periods=1).max()
-        .reset_index(level=0, drop=True)
-        .fillna(0)
-        .astype(int)
-    )
-
-    out.drop(columns=["_team_stint_id", "_game_in_stint", "_changed_team_flag"], inplace=True)
-    return out
-
-
-def add_opp_3p_defense_features_roll(
-    df: pd.DataFrame,
-    min_games_for_rank: int = 5,
-    fill_early_rank: float | None = None,
-) -> pd.DataFrame:
-    """
-    Leakage-safe opponent 3P defense features from player game logs.
-
-    Defensive team is df['opp'].
-    For each (season, opp, date), we compute opponent defense *to date* (excluding the current date).
-    Then merge back to each player row on (season, opp, date).
-    """
-    data = df.copy()
-    data["date"] = pd.to_datetime(data["date"])
-
-    # Aggregate all players vs that opponent on that date
-    opp_game = (
-        data.groupby(["season", "opp", "date"], as_index=False)
-            .agg(
-                fg3a_allowed=("fg3a", "sum"),
-                fg3m_allowed=("fg3", "sum"),
-            )
-            .sort_values(["season", "opp", "date"])
-    )
-
-    g = opp_game.groupby(["season", "opp"], sort=False)
-
-    # number of prior games (so current date is excluded)
-    opp_game["games_played_to_date"] = g.cumcount()
-    opp_game["fg3a_allowed_to_date"] = g["fg3a_allowed"].cumsum() - opp_game["fg3a_allowed"]
-    opp_game["fg3m_allowed_to_date"] = g["fg3m_allowed"].cumsum() - opp_game["fg3m_allowed"]
-
-    denom_games = opp_game["games_played_to_date"].replace(0, np.nan)
-
-    opp_game["opp_fg3a_allowed_pg_to_date"] = opp_game["fg3a_allowed_to_date"] / denom_games
-    opp_game["opp_fg3m_allowed_pg_to_date"] = opp_game["fg3m_allowed_to_date"] / denom_games
-
-    opp_game["opp_3p_pct_allowed_to_date"] = (
-        opp_game["fg3m_allowed_to_date"] /
-        opp_game["fg3a_allowed_to_date"].replace(0, np.nan)
-    )
-
-    # date-by-date rank inside season (lower allowed = better defense)
-    eligible = opp_game["games_played_to_date"] >= min_games_for_rank
-    opp_game["opp_def_3p_rank_to_date"] = np.nan
-    opp_game.loc[eligible, "opp_def_3p_rank_to_date"] = (
-        opp_game.loc[eligible]
-            .groupby(["season", "date"])["opp_fg3m_allowed_pg_to_date"]
-            .rank(method="min", ascending=True)
-    )
-
-    if fill_early_rank is not None:
-        opp_game["opp_def_3p_rank_to_date"] = opp_game["opp_def_3p_rank_to_date"].fillna(fill_early_rank)
-
-    feat_cols = [
-        "season", "opp", "date",
-        "games_played_to_date",
-        "opp_fg3a_allowed_pg_to_date",
-        "opp_fg3m_allowed_pg_to_date",
-        "opp_3p_pct_allowed_to_date",
-        "opp_def_3p_rank_to_date",
-    ]
-
-    out = data.merge(opp_game[feat_cols], on=["season", "opp", "date"], how="left")
-    return out
-
-
-
-# ----------------------------
-# No-leak feature builder
-# ----------------------------
-def build_features_no_leak(
-    df: pd.DataFrame,
-    *,
-    roll5: int = 5,
-    roll10: int = 10,
-    rest_fill: int = 4,
-    rest_cap: int = 7,
-    pct_prior: float = 0.36,
-    pct_prior_att: float = 50.0,
-) -> pd.DataFrame:
+# ------------------------------------------------------------
+# Core: no-leak rolling features
+# ------------------------------------------------------------
+def build_features_no_leak(df: pd.DataFrame) -> pd.DataFrame:
     """
     Creates trailing/rolling features using shift(1) so each row uses ONLY past games.
 
     Requires columns:
-      player, date, season, team, opp, mp_minutes, fga, fg3a, fg3, usage, is_home
-
-    Notes:
-      - Uses min_periods=1 for rolling means so early-season rows aren't all NaN.
-      - Uses a Beta-style prior for rolling FG3% when attempts are small or zero.
+      player, date, season, team, opp,
+      mp_minutes, fga, fg3a, fg3, usage, is_home
     """
     df = df.sort_values(["player", "date"]).copy()
     g = df.groupby("player", sort=False)
 
-    # --- trailing rolling means (past-only) ---
-    df["min_rolling_5"] = (
-        g["mp_minutes"].shift(1).rolling(roll5, min_periods=1).mean().reset_index(level=0, drop=True)
-    )
-    df["fga_rolling_5"] = (
-        g["fga"].shift(1).rolling(roll5, min_periods=1).mean().reset_index(level=0, drop=True)
-    )
-    df["fg3a_rolling_5"] = (
-        g["fg3a"].shift(1).rolling(roll5, min_periods=1).mean().reset_index(level=0, drop=True)
-    )
+    # trailing rolling means (past-only)
+    df["min_rolling_5"]  = g["mp_minutes"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
+    df["fga_rolling_5"]  = g["fga"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
+    df["fg3a_rolling_5"] = g["fg3a"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
+    df["fg3_rolling_5"]  = g["fg3"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
 
-    # --- recent 10-game pct using sums (past-only), plus attempts count for confidence ---
-    made10 = g["fg3"].shift(1).rolling(roll10, min_periods=1).sum().reset_index(level=0, drop=True)
-    att10 = g["fg3a"].shift(1).rolling(roll10, min_periods=1).sum().reset_index(level=0, drop=True)
+    made10 = g["fg3"].shift(1).rolling(10).sum().reset_index(level=0, drop=True)
+    att10  = g["fg3a"].shift(1).rolling(10).sum().reset_index(level=0, drop=True)
 
     df["fg3_att_rolling_10"] = att10
+    df["fg3_pct_rolling_10"] = (made10 / att10).where(att10 > 0)
 
-    # Stabilized rolling pct with prior (handles att10 == 0 and low-sample volatility)
-    prior_made = pct_prior * pct_prior_att
-    df["fg3_pct_rolling_10"] = (made10 + prior_made) / (att10 + pct_prior_att)
-
-    # --- rest/context (pregame-known) ---
-    days_rest = g["date"].diff().dt.days.reset_index(level=0, drop=True)
-    df["days_rest"] = days_rest.clip(lower=0, upper=rest_cap).fillna(rest_fill)
+    # rest/context
+    df["days_rest"] = g["date"].diff().dt.days.reset_index(level=0, drop=True)
     df["back_to_back"] = (df["days_rest"] == 1).astype(int)
 
-    # --- home flag (pregame-known) ---
+    # home flag
     df["home_game"] = df["is_home"].astype(int)
 
-    # --- pregame-safe role proxy: expected minutes based on last 10 games (past-only) ---
-    df["expected_min_10"] = (
-        g["mp_minutes"].shift(1).rolling(roll10, min_periods=1).mean().reset_index(level=0, drop=True)
-    )
-    df["min_share_10"] = (df["expected_min_10"] / 36.0).clip(0, 1)
+    # starter_prob_10: proxy for minutes share / role stability
+    df["starter_prob_10"] = (
+        g["mp_minutes"]
+        .shift(1)
+        .rolling(10)
+        .mean()
+        .reset_index(level=0, drop=True) / 30.0
+    ).clip(0, 1)
 
-    # backward compatibility (old name)
-    df["starter_prob_10"] = df["min_share_10"]
+    # starter_flag: if missing, default 0 (pregame unknown)
+    if "starter_flag" not in df.columns:
+        df["starter_flag"] = 0
 
     return df
 
 
-# ----------------------------
-# Player baselines (season-to-date, past-only)
-# ----------------------------
-import numpy as np
-import pandas as pd
-
-def add_player_baselines(
-    df: pd.DataFrame,
-    *,
-    pct_prior: float = 0.36,
-    pct_prior_att: float = 200.0,
-) -> pd.DataFrame:
+# ------------------------------------------------------------
+# Player baselines (season-scoped, past-only)
+# ------------------------------------------------------------
+def add_player_baselines(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Adds season-to-date baselines using shift(1) expanding stats within (player, season).
+    Player identity WITHOUT using player name as categorical.
+    Season-scoped expanding stats via shift(1) (past-only).
 
-    Also exposes baseline strength diagnostics:
-      - player_fg3a_season_sum (past-only)
-      - player_fg3_made_season_sum (past-only)
-      - pct_prior_weight in [0,1] = how much the prior still dominates the pct estimate
+    Requires: player, season, date, fg3a, fg3, mp_minutes, usage
     """
     df = df.sort_values(["player", "season", "date"]).copy()
     g = df.groupby(["player", "season"], sort=False)
 
-    # expanding mean of past fg3a (season-to-date, past-only)
-    df["player_fg3a_season_avg"] = g["fg3a"].transform(lambda s: s.shift(1).expanding().mean())
+    # Expanding mean of past attempts (shifted)
+    df["player_fg3a_season_avg"] = (
+        g["fg3a"]
+        .apply(lambda s: s.shift(1).expanding().mean())
+        .reset_index(level=[0, 1], drop=True)
+    )
 
-    # expanding sums for pct (season-to-date, past-only)
-    made_sum = g["fg3"].transform(lambda s: s.shift(1).expanding().sum())
-    att_sum  = g["fg3a"].transform(lambda s: s.shift(1).expanding().sum())
+    # Expanding pct of past makes/attempts (shifted)
+    made = g["fg3"].apply(lambda s: s.shift(1).expanding().sum())
+    att  = g["fg3a"].apply(lambda s: s.shift(1).expanding().sum())
 
-    # keep sums (needed for credibility gating)
-    df["player_fg3_made_season_sum"] = made_sum
-    df["player_fg3a_season_sum"] = att_sum
+    df["player_fg3_pct_season"] = (made / att).reset_index(level=[0, 1], drop=True)
 
-    # Stabilize season pct with a prior (Beta-style shrinkage)
-    prior_made = pct_prior * pct_prior_att
-    df["player_fg3_pct_season"] = (made_sum + prior_made) / (att_sum + pct_prior_att)
+    df["player_min_season_avg"] = (
+        g["mp_minutes"]
+        .apply(lambda s: s.shift(1).expanding().mean())
+        .reset_index(level=[0, 1], drop=True)
+    )
 
-    # how prior-dominated is the pct estimate?
-    # if att_sum is small, prior_weight ~ 1 (bad for baseline identity)
-    df["pct_prior_weight"] = pct_prior_att / (att_sum + pct_prior_att)
+    df["player_usage_season"] = (
+        g["usage"]
+        .apply(lambda s: s.shift(1).expanding().mean())
+        .reset_index(level=[0, 1], drop=True)
+    )
 
-    # role baselines
-    df["player_min_season_avg"] = g["mp_minutes"].transform(lambda s: s.shift(1).expanding().mean())
-    df["player_usage_season"] = g["usage"].transform(lambda s: s.shift(1).expanding().mean())
-
-    # change signals
-    if "fg3a_rolling_5" in df.columns:
-        df["fg3a_delta_5"] = df["fg3a_rolling_5"] - df["player_fg3a_season_avg"]
-
-    if "min_rolling_5" in df.columns:
-        df["min_delta_5"] = df["min_rolling_5"] - df["player_min_season_avg"]
+    # Fill rolling pct when no attempts in last 10 with season pct
+    df["fg3_pct_rolling_10"] = df["fg3_pct_rolling_10"].fillna(df["player_fg3_pct_season"])
 
     return df
+
+# ------------------------------------------------------------
+# NEW: Team stint / team-change features (pregame-safe)
+# ------------------------------------------------------------
+def add_team_stint_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Creates:
+      - games_played_to_date
+      - team_games_in_stint_to_date
+      - new_team_game
+      - recent_team_change_5
+
+    Requires: player, season, date, team
+    """
+    df = df.sort_values(["player", "season", "date"]).copy()
+
+    g = df.groupby(["player", "season"], sort=False)
+
+    # game index within season (0-based)
+    df["games_played_to_date"] = g.cumcount()
+
+    # team change indicator (compared to previous game)
+    prev_team = g["team"].shift(1)
+    changed = ((df["team"] != prev_team) & prev_team.notna()).astype(int)
+    df["_changed_team"] = changed
+
+    # first game after team change
+    df["new_team_game"] = df["_changed_team"]
+
+    # stint id increments when team changes
+    df["_stint_id"] = g["_changed_team"].cumsum()
+
+    # games into current stint (0-based)
+    df["team_games_in_stint_to_date"] = (
+        df.groupby(["player", "season", "_stint_id"], sort=False).cumcount()
+    )
+
+    # recent team change in last 5 PRIOR games (shifted)
+    # use apply so index alignment is stable
+    df["recent_team_change_5"] = (
+        g["_changed_team"]
+        .apply(lambda s: s.shift(1).rolling(5).max())
+        .reset_index(level=[0, 1], drop=True)
+        .fillna(0)
+        .astype(int)
+    )
+
+    return df.drop(columns=["_changed_team", "_stint_id"])
+# ------------------------------------------------------------
+# NEW: Opponent 3P defense allowed-to-date (pregame-safe)
+# ------------------------------------------------------------
+def add_opp_3p_defense_to_date(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Builds opponent defense 'allowed' features to date (pregame-safe), derived from
+    team-game totals aggregated from player rows.
+
+    Adds:
+      - opp_fg3a_allowed_pg_to_date
+      - opp_fg3m_allowed_pg_to_date
+      - opp_3p_pct_allowed_to_date
+      - opp_def_3p_rank_to_date
+
+    Requires: season, date, team, opp, fg3a, fg3
+    """
+    df = df.sort_values(["season", "date", "team", "opp"]).copy()
+
+    # 1) Team-game offense totals (aggregated from player rows)
+    team_game = (
+        df.groupby(["season", "date", "team", "opp"], as_index=False)[["fg3a", "fg3"]]
+          .sum()
+          .rename(columns={"fg3a": "team_fg3a_game", "fg3": "team_fg3m_game"})
+    )
+
+    # 2) Convert to defense "allowed" rows:
+    # opponent (opp) is the defending team that allowed these team totals
+    allowed = team_game.rename(columns={
+        "opp": "def_team",
+        "team_fg3a_game": "allowed_fg3a_game",
+        "team_fg3m_game": "allowed_fg3m_game",
+    })[["season", "date", "def_team", "allowed_fg3a_game", "allowed_fg3m_game"]]
+
+    allowed = allowed.sort_values(["def_team", "season", "date"]).copy()
+    g = allowed.groupby(["def_team", "season"], sort=False)
+
+    # 3) To-date means (shifted) using apply to keep index stable
+    allowed["opp_fg3a_allowed_pg_to_date"] = (
+        g["allowed_fg3a_game"]
+        .apply(lambda s: s.shift(1).expanding().mean())
+        .reset_index(level=[0, 1], drop=True)
+    )
+
+    allowed["opp_fg3m_allowed_pg_to_date"] = (
+        g["allowed_fg3m_game"]
+        .apply(lambda s: s.shift(1).expanding().mean())
+        .reset_index(level=[0, 1], drop=True)
+    )
+
+    # 4) To-date pct allowed (shifted expanding sums)
+    allowed_att_sum = (
+        g["allowed_fg3a_game"]
+        .apply(lambda s: s.shift(1).expanding().sum())
+        .reset_index(level=[0, 1], drop=True)
+    )
+    allowed_made_sum = (
+        g["allowed_fg3m_game"]
+        .apply(lambda s: s.shift(1).expanding().sum())
+        .reset_index(level=[0, 1], drop=True)
+    )
+
+    allowed["opp_3p_pct_allowed_to_date"] = allowed_made_sum / allowed_att_sum
+
+    # 5) Rank defenses on each date within season (lower allowed pct = better defense)
+    allowed["opp_def_3p_rank_to_date"] = (
+        allowed.groupby(["season", "date"])["opp_3p_pct_allowed_to_date"]
+               .rank(method="average", ascending=True)
+    )
+
+    # 6) Merge onto player rows by opponent faced
+    allowed = allowed.rename(columns={"def_team": "opp"})
+    df = df.merge(
+        allowed[[
+            "season", "date", "opp",
+            "opp_fg3a_allowed_pg_to_date",
+            "opp_fg3m_allowed_pg_to_date",
+            "opp_3p_pct_allowed_to_date",
+            "opp_def_3p_rank_to_date",
+        ]],
+        on=["season", "date", "opp"],
+        how="left",
+    )
+
+    # 7) Safe fills for early season / missing
+    league_pct = float(df["fg3"].sum() / max(df["fg3a"].sum(), 1))
+
+    df["opp_3p_pct_allowed_to_date"] = df["opp_3p_pct_allowed_to_date"].fillna(league_pct)
+
+    df["opp_fg3a_allowed_pg_to_date"] = df["opp_fg3a_allowed_pg_to_date"].fillna(df["fg3a"].mean())
+    df["opp_fg3m_allowed_pg_to_date"] = df["opp_fg3m_allowed_pg_to_date"].fillna(df["fg3"].mean())
+
+    if df["opp_def_3p_rank_to_date"].notna().any():
+        df["opp_def_3p_rank_to_date"] = df["opp_def_3p_rank_to_date"].fillna(
+            df["opp_def_3p_rank_to_date"].median()
+        )
+    else:
+        df["opp_def_3p_rank_to_date"] = 15.0
+
+    return df
+# ------------------------------------------------------------
+# Convenience: build all threes features in one call
+# ------------------------------------------------------------
+def build_all_threes_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    One-stop feature builder for threes models.
+    Order matters.
+    """
+    df = build_features_no_leak(df)
+    df = add_player_baselines(df)
+    df = add_team_stint_features(df)
+    df = add_opp_3p_defense_to_date(df)
+    return df
+
+
+# model_training/threes/features.py
+# Add this at the VERY BOTTOM of the file (compat shims)
+
+import pandas as pd  # (safe if already imported above)
+
+def add_opp_3p_defense_features_roll(df: pd.DataFrame) -> pd.DataFrame:
+    """Backward-compatible alias (old name) -> new implementation."""
+    return add_opp_3p_defense_to_date(df)
+
+def add_opp_3p_defense_features_to_date(df: pd.DataFrame) -> pd.DataFrame:
+    """Optional alias if any old code uses this name."""
+    return add_opp_3p_defense_to_date(df)
+
