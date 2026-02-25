@@ -1,0 +1,7 @@
+[INFO] schedule_date=2026-02-25
+[INFO] schedule_date=2026-02-25 beyond history max date=2026-02-12.
+       Using model_date=2026-02-12 for features/predictions (likely ASB / no new logs).
+[WARN] Schedule fetch failed for schedule_date=2026-02-25.
+       Reason: ReadTimeout: HTTPSConnectionPool(host='stats.nba.com', port=443): Read timed out. (read timeout=30)
+       Falling back to manual matchup config if provided.
+[INFO] Using manual matchup fallback: LAL@BOS | game_date=2026-02-20

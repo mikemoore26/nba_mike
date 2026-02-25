@@ -1,0 +1,56 @@
+[
+  {
+    "game_id": "0022500842",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612760,
+    "home_team_id": 1610612765,
+    "away_abbrev": "OKC",
+    "home_abbrev": "DET",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500843",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612759,
+    "home_team_id": 1610612761,
+    "away_abbrev": "SAS",
+    "home_abbrev": "TOR",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500844",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612744,
+    "home_team_id": 1610612763,
+    "away_abbrev": "GSW",
+    "home_abbrev": "MEM",
+    "status_text": "7:30 pm ET"
+  },
+  {
+    "game_id": "0022500845",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612758,
+    "home_team_id": 1610612745,
+    "away_abbrev": "SAC",
+    "home_abbrev": "HOU",
+    "status_text": "8:00 pm ET"
+  },
+  {
+    "game_id": "0022500846",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612739,
+    "home_team_id": 1610612749,
+    "away_abbrev": "CLE",
+    "home_abbrev": "MIL",
+    "status_text": "8:00 pm ET"
+  },
+  {
+    "game_id": "0022500847",
+    "game_date": "2026-02-25",
+    "away_team_id": 1610612738,
+    "home_team_id": 1610612743,
+    "away_abbrev": "BOS",
+    "home_abbrev": "DEN",
+    "status_text": "10:00 pm ET"
+  }
+]
