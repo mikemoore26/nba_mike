@@ -36,16 +36,15 @@ def main(
     history_df = pd.read_csv(combined_path, low_memory=False)
     history_df = prepare_history_df(history_df, norm_team_fn=norm_team)
 
-    slate_df, slate_date, results_dir = resolve_matchups(
+    slate_df, run_date, feature_date, results_dir = resolve_matchups(
         schedule_dt=schedule_dt,
-        schedule_date=schedule_date,
         history_df=history_df,
         away_team=away_team,
         home_team=home_team,
-        game_date=game_date,
+        feature_date=game_date,
     )
 
-    print_slate_debug(prefix="FG3", slate_df=slate_df, slate_date=slate_date)
+    print_slate_debug(prefix="FG3", slate_df=slate_df, run_date=run_date, feature_date=feature_date)
 
     today_df = build_today_rows_v2(
         df_hist=history_df,
@@ -67,7 +66,7 @@ def main(
     pred_df.to_csv(out_path, index=False)
 
     (results_dir / "_meta_fg3.txt").write_text(
-        f"slate_date={slate_date}\nrows={len(pred_df)}\n"
+        f"run_date={run_date}\nfeature_date={feature_date}\nrows={len(pred_df)}\n"
     )
 
     print(f"[FG3] Saved -> {out_path}")

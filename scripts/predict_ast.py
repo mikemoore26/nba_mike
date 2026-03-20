@@ -23,10 +23,9 @@ def main(
     max_players_per_team: int = 12,
     away_team: str | None = None,
     home_team: str | None = None,
-    game_date: str | None = None,
+    game_date: str | None = None,  # this now means feature_date override
 ) -> None:
     schedule_dt = datetime.today() + (timedelta(days=1) if use_tomorrow else timedelta(days=0))
-    schedule_date = schedule_dt.strftime("%Y-%m-%d")
 
     combined_path = Path(PATH_GAMLOGS_COMBINED)
     if rebuild_history:
@@ -36,20 +35,19 @@ def main(
     history_df = pd.read_csv(combined_path, low_memory=False)
     history_df = prepare_history_df(history_df, norm_team_fn=norm_team)
 
-    slate_df, slate_date, results_dir = resolve_matchups(
+    slate_df, run_date, feature_date, results_dir = resolve_matchups(
         schedule_dt=schedule_dt,
-        schedule_date=schedule_date,
         history_df=history_df,
         away_team=away_team,
         home_team=home_team,
-        game_date=game_date,
+        feature_date=game_date,
     )
 
-    print_slate_debug(prefix="AST", slate_df=slate_df, slate_date=slate_date)
+    print_slate_debug(prefix="AST", slate_df=slate_df, run_date=run_date, feature_date=feature_date)
 
     today_df = build_today_rows_v2(
         df_hist=history_df,
-        slate_df=slate_df,
+        slate_df=slate_df.drop(columns=[c for c in ["_run_date", "_feature_date", "_schedule_source"] if c in slate_df.columns]),
         min_games_required=min_games_required,
         active_within_days=active_within_days,
         min_minutes_threshold=min_minutes_threshold,
@@ -67,7 +65,7 @@ def main(
     pred_df.to_csv(out_path, index=False)
 
     (results_dir / "_meta_ast.txt").write_text(
-        f"slate_date={slate_date}\nrows={len(pred_df)}\n"
+        f"run_date={run_date}\nfeature_date={feature_date}\nrows={len(pred_df)}\n"
     )
 
     print(f"[AST] Saved -> {out_path}")

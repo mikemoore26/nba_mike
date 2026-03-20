@@ -50,7 +50,7 @@ def main() -> None:
     )
 
     print("All projection files complete.")
-    print("Saved under results/{slate_date}/ as:")
+    print("Saved under results/{run_date}/ as:")
     print("  pred_ast.csv")
     print("  pred_reb.csv")
     print("  pred_fg3.csv")

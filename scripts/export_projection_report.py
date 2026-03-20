@@ -9,6 +9,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
+from datetime import datetime
+
+
 # ---------- CONFIG ----------
 N_TOP = 15
 
@@ -75,12 +78,14 @@ def build_table(df: pd.DataFrame, title: str, cols: list[str]):
 def main():
     base = Path("results")
 
-    # get latest date folder
-    date_dirs = sorted([d for d in base.iterdir() if d.is_dir()])
-    if not date_dirs:
-        raise ValueError("No results folders found")
 
-    latest_dir = date_dirs[-1]
+    today_str = datetime.today().strftime("%Y-%m-%d")
+    today_dir = base / today_str
+
+    if not today_dir.exists():
+        raise ValueError(f"No results found for today: {today_str}")
+
+    latest_dir = today_dir
 
     pts = clean_df(load_if_exists(latest_dir / "pred_pts.csv"))
     reb = clean_df(load_if_exists(latest_dir / "pred_reb.csv"))
