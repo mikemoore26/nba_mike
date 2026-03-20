@@ -13,6 +13,32 @@ from model_training.config import ASSISTS_MODEL_DIR, PATH_GAMLOGS_COMBINED
 from model_training.utils.team_codes import norm_team
 
 
+def _auto_relax_active_within_days(
+    *,
+    history_df: pd.DataFrame,
+    run_date: str,
+    active_within_days: int | None,
+) -> int | None:
+    if active_within_days is None:
+        return None
+
+    hist_max_date = pd.to_datetime(history_df["game_date"], errors="coerce").max()
+    if pd.isna(hist_max_date):
+        return active_within_days
+
+    gap_days = (pd.to_datetime(run_date) - hist_max_date).days
+    if gap_days <= active_within_days:
+        return active_within_days
+
+    relaxed = gap_days + 7
+    print(
+        f"[AST] Relaxing active_within_days from {active_within_days} to {relaxed} "
+        f"because history is stale relative to run_date "
+        f"(hist_max_date={hist_max_date.date()}, run_date={run_date})."
+    )
+    return relaxed
+
+
 def main(
     *,
     use_tomorrow: bool = False,
@@ -23,7 +49,7 @@ def main(
     max_players_per_team: int = 12,
     away_team: str | None = None,
     home_team: str | None = None,
-    game_date: str | None = None,  # this now means feature_date override
+    game_date: str | None = None,  # optional history cutoff override
 ) -> None:
     schedule_dt = datetime.today() + (timedelta(days=1) if use_tomorrow else timedelta(days=0))
 
@@ -35,7 +61,7 @@ def main(
     history_df = pd.read_csv(combined_path, low_memory=False)
     history_df = prepare_history_df(history_df, norm_team_fn=norm_team)
 
-    slate_df, run_date, feature_date, results_dir = resolve_matchups(
+    slate_df, run_date, history_cutoff_date, results_dir = resolve_matchups(
         schedule_dt=schedule_dt,
         history_df=history_df,
         away_team=away_team,
@@ -43,13 +69,24 @@ def main(
         feature_date=game_date,
     )
 
-    print_slate_debug(prefix="AST", slate_df=slate_df, run_date=run_date, feature_date=feature_date)
+    print_slate_debug(
+        prefix="AST",
+        slate_df=slate_df,
+        run_date=run_date,
+        history_cutoff_date=history_cutoff_date,
+    )
+
+    effective_active_within_days = _auto_relax_active_within_days(
+        history_df=history_df,
+        run_date=run_date,
+        active_within_days=active_within_days,
+    )
 
     today_df = build_today_rows_v2(
         df_hist=history_df,
-        slate_df=slate_df.drop(columns=[c for c in ["_run_date", "_feature_date", "_schedule_source"] if c in slate_df.columns]),
+        slate_df=slate_df.drop(columns=[c for c in ["_run_date", "_history_cutoff_date", "_schedule_source"] if c in slate_df.columns]),
         min_games_required=min_games_required,
-        active_within_days=active_within_days,
+        active_within_days=effective_active_within_days,
         min_minutes_threshold=min_minutes_threshold,
         max_players_per_team=max_players_per_team,
         error_on_empty=True,
@@ -65,7 +102,10 @@ def main(
     pred_df.to_csv(out_path, index=False)
 
     (results_dir / "_meta_ast.txt").write_text(
-        f"run_date={run_date}\nfeature_date={feature_date}\nrows={len(pred_df)}\n"
+        f"run_date={run_date}\n"
+        f"history_cutoff_date={history_cutoff_date}\n"
+        f"active_within_days={effective_active_within_days}\n"
+        f"rows={len(pred_df)}\n"
     )
 
     print(f"[AST] Saved -> {out_path}")

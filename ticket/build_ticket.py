@@ -2,39 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-
-def add_scores(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-
-    max_minutes = df["minutes_proj"].max() or 1
-    max_pred = df["pred_mean"].max() or 1
-    max_delta = df["delta_mean"].abs().max() or 1
-
-    df["minutes_score"] = df["minutes_proj"] / max_minutes
-    df["pred_score"] = df["pred_mean"] / max_pred
-    df["delta_score"] = df["delta_mean"] / max_delta
-
-    # SAFE = floor first
-    df["score_safe"] = (
-        0.7 * df["minutes_score"] +
-        0.3 * df["pred_score"]
-    )
-    df.loc[df["minutes_proj"] < 20, "score_safe"] *= 0.3
-
-    # BALANCED = blend
-    df["score_balanced"] = (
-        0.4 * df["minutes_score"] +
-        0.3 * df["pred_score"] +
-        0.3 * df["delta_score"]
-    )
-
-    # LOTTO = upside
-    df["score_lotto"] = (
-        0.7 * df["delta_score"] +
-        0.3 * df["pred_score"]
-    )
-
-    return df
+from ticket.projection_ranker import rank_projection_pool
 
 
 def build_ticket(
@@ -48,11 +16,11 @@ def build_ticket(
 
     # ticket-specific floor rules
     if score_col == "score_safe":
-        df = df[df["minutes_proj"] >= 22].copy()
+        df = df[(df["minutes_proj"] >= 22) & (df["confidence_tier"].isin(["high_conf", "medium_conf"]))].copy()
     elif score_col == "score_balanced":
-        df = df[df["minutes_proj"] >= 18].copy()
+        df = df[(df["minutes_proj"] >= 18) & (df["confidence_tier"].isin(["high_conf", "medium_conf"]))].copy()
     elif score_col == "score_lotto":
-        df = df[df["minutes_proj"] >= 10].copy()
+        df = df[(df["minutes_proj"] >= 10)].copy()
 
     selected = []
     used_players = set()
@@ -75,7 +43,7 @@ def build_ticket(
         if team in used_teams:
             continue
 
-        # prefer diversity while filling ticket
+        # prefer diversity while filling toward min_legs
         if stat in used_stats and len(used_stats) < min_legs:
             continue
 
@@ -88,7 +56,7 @@ def build_ticket(
         used_stats.add(stat)
         used_games.add(game)
 
-    # second pass: relax stat diversity first
+    # relax stat diversity first
     if len(selected) < min_legs:
         for _, row in df.iterrows():
             if len(selected) >= min_legs:
@@ -110,7 +78,7 @@ def build_ticket(
             used_teams.add(team)
             used_games.add(game)
 
-    # third pass: relax game uniqueness
+    # relax game uniqueness
     if len(selected) < min_legs:
         for _, row in df.iterrows():
             if len(selected) >= min_legs:
@@ -128,7 +96,7 @@ def build_ticket(
             used_players.add(player)
             used_teams.add(team)
 
-    # final pass: relax team uniqueness too, but still no duplicate players
+    # final fallback: no duplicate players only
     if len(selected) < min_legs:
         for _, row in df.iterrows():
             if len(selected) >= min_legs:
@@ -154,22 +122,22 @@ def build_all_tickets(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     if df.empty:
         raise ValueError("No eligible players for tickets")
 
-    df = add_scores(df)
+    ranked = rank_projection_pool(df)
 
     safe = build_ticket(
-        df,
+        ranked,
         "score_safe",
         min_legs=3,
         max_legs=5,
     )
     balanced = build_ticket(
-        df,
+        ranked,
         "score_balanced",
         min_legs=5,
         max_legs=7,
     )
     lotto = build_ticket(
-        df,
+        ranked,
         "score_lotto",
         min_legs=10,
         max_legs=20,
@@ -197,6 +165,7 @@ def build_all_tickets(df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     ])
 
     return {
+        "ranked_pool": ranked,
         "safe": safe,
         "balanced": balanced,
         "lotto": lotto,
