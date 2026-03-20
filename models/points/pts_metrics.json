@@ -1,0 +1,12 @@
+{
+  "n_train": 18764.0,
+  "n_valid": 29339.0,
+  "fg2a_model_valid_mae": 2.0664107943769827,
+  "fta_model_valid_mae": 1.6771046092814053,
+  "pts_baseline_valid_mae": 3.4360166813857367,
+  "pts_model_valid_mae": 3.4012502124917314,
+  "pts_baseline_valid_rmse": 4.650841169603335,
+  "pts_model_valid_rmse": 4.560564346169199,
+  "pts_model_valid_mape": 0.4187365092477933,
+  "valid_dispersion_alpha_mom": 0.06056240819021126
+}

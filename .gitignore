@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environments
+venv/
+.venv/
+
+# Data
+data/gamelogs/gamelogs_parquet/
+results/
+data/cache/
+
+# Models
+models/**/*.joblib
+models/**/*.pkl
+
+# OS
+.DS_Store
+Thumbs.db

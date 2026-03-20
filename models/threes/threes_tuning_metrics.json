@@ -1,0 +1,18 @@
+{
+  "fg3a": {
+    "poisson_deviance": 1.4068571975853779,
+    "params": {
+      "learning_rate": 0.04,
+      "max_depth": 4,
+      "max_iter": 600
+    }
+  },
+  "fg3_rate": {
+    "mae": 0.14202869705726603,
+    "params": {
+      "learning_rate": 0.04,
+      "max_depth": 4,
+      "max_iter": 600
+    }
+  }
+}

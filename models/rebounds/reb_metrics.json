@@ -1,0 +1,16 @@
+{
+  "n_train": 18458.0,
+  "n_valid": 28946.0,
+  "baseline_train_mae": 1.805926486625483,
+  "baseline_valid_mae": 2.027503992915961,
+  "model_train_mae": 1.7533246582126705,
+  "model_valid_mae": 1.9535369698718352,
+  "baseline_train_rmse": 2.4530203254862295,
+  "baseline_valid_rmse": 2.7452439003045153,
+  "model_train_rmse": 2.289528969735039,
+  "model_valid_rmse": 2.5635871181968426,
+  "baseline_valid_mape": 0.6030784336666499,
+  "model_valid_mape": 0.6093499994120578,
+  "train_dispersion_alpha_mom": 0.09930612087863738,
+  "valid_dispersion_alpha_mom": 0.11512636850727131
+}
