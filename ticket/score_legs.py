@@ -1,75 +1,77 @@
 from __future__ import annotations
+
 import pandas as pd
+import numpy as np
 
 
 REQUIRED_COLS = ["line", "side", "p_hit", "pred_mean"]
 
 
+def _series_or_default(df: pd.DataFrame, col: str, default: float) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(default, index=df.index, dtype="float64")
+    return pd.to_numeric(df[col], errors="coerce").fillna(default)
+
+
 def score_legs(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Scores betting legs using:
-    - probability (p_hit)
-    - model edge vs line
-    - minutes confidence
-    - volatility penalties
-
-    Returns dataframe with:
-    - score
-    - edge_rank_pct
-    """
-
-    missing = [c for c in REQUIRED_COLS if c not in df.columns]
-    if missing:
-        raise ValueError(f"score_legs missing required columns: {missing}")
-
     df = df.copy()
 
-    # -------------------------
-    # CORE EDGE
-    # -------------------------
+    required = ["pred_mean", "line"]
+    for col in required:
+        if col not in df.columns:
+            raise ValueError(f"Missing column: {col}")
+
+    # -----------------------------------
+    # STEP 1: Create fallback line if missing
+    # -----------------------------------
+    if "line" not in df.columns:
+        df["line"] = df["pred_mean"].round()
+
+    # -----------------------------------
+    # STEP 2: Side
+    # -----------------------------------
+    df["side"] = np.where(df["pred_mean"] > df["line"], "over", "under")
+
+    # -----------------------------------
+    # STEP 3: Edge
+    # -----------------------------------
     df["edge_raw"] = df["pred_mean"] - df["line"]
+    df["edge_abs"] = df["edge_raw"].abs()
 
-    df["edge_directional"] = df.apply(
-        lambda r: r["edge_raw"] if r["side"] == "over" else -r["edge_raw"],
-        axis=1,
+    # -----------------------------------
+    # STEP 4: p_hit (approx fallback)
+    # -----------------------------------
+    if "p_hit" not in df.columns:
+        # simple approximation
+        df["p_hit"] = 0.5 + np.tanh(df["edge_raw"] / 2) * 0.25
+
+    # -----------------------------------
+    # STEP 5: Scores (NO HARD FILTER)
+    # -----------------------------------
+    df["score_safe"] = (
+        0.65 * df["p_hit"]
+        + 0.35 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
     )
 
-    df["edge_norm"] = df["edge_directional"] / (df["line"].abs() + 1)
-
-    # -------------------------
-    # OPTIONAL INPUTS (SAFE DEFAULTS)
-    # -------------------------
-    df["minutes_conf"] = df.get("minutes_conf", 1.0).fillna(1.0)
-    df["vol_penalty"] = df.get("stat_vol_penalty", 0.0).fillna(0.0)
-    df["line_penalty"] = df.get("extreme_line_penalty", 0.0).fillna(0.0)
-
-    # clip to safe ranges
-    df["minutes_conf"] = df["minutes_conf"].clip(0.0, 1.0)
-    df["vol_penalty"] = df["vol_penalty"].clip(0.0, 1.0)
-    df["line_penalty"] = df["line_penalty"].clip(0.0, 1.0)
-
-    # -------------------------
-    # FINAL SCORE (SHARP VERSION)
-    # -------------------------
-    df["score"] = (
-        df["p_hit"]
-        * (1 + df["edge_norm"])
-        * df["minutes_conf"]
-        * (1 - df["vol_penalty"])
-        * (1 - df["line_penalty"])
+    df["score_balanced"] = (
+        0.55 * df["p_hit"]
+        + 0.45 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
     )
 
-    # -------------------------
-    # RANKING (REPLACES ranked_pool)
-    # -------------------------
-    df["edge_rank_pct"] = df["score"].rank(pct=True)
+    df["score_lotto"] = (
+        0.45 * df["p_hit"]
+        + 0.55 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
+    )
 
-    return df
+    # -----------------------------------
+    # STEP 6: KEEP TOP N PER SLATE
+    # -----------------------------------
+    df = df.sort_values("score_balanced", ascending=False)
 
+    # 🔥 THIS IS KEY
+    df = df.head(50)
 
+    return df.reset_index(drop=True)
 def build_ranked_pool(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Sorts scored legs into ranked pool
-    """
-    df = score_legs(df)
-    return df.sort_values("score", ascending=False).reset_index(drop=True)
+    out = score_legs(df)
+    return out.sort_values("score", ascending=False).reset_index(drop=True)

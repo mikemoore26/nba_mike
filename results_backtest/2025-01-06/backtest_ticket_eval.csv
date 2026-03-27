@@ -1,4 +1,4 @@
 game_date,ticket_type,ticket_id,legs,win_legs,loss_legs,push_legs,avg_line,avg_actual,avg_pred,avg_edge_vs_line,all_legs_win,has_any_loss,all_push,ticket_result,ticket_win,ticket_loss,ticket_push
-2025-01-06,balanced,balanced_1,4,1,3,0,14.5,17.5,13.229984258968182,1.270015741031819,False,True,False,loss,False,True,False
-2025-01-06,lotto,lotto_1,8,4,4,0,11.75,13.5,11.134985572100053,1.2650913598533002,False,True,False,loss,False,True,False
-2025-01-06,safe,safe_1,5,4,1,0,6.3,4.4,5.042869859957618,1.2571301400423827,False,True,False,loss,False,True,False
+2025-01-06,balanced,2025-01-06_balanced_1,4,2,2,0,0.5,1.0,1.9580014703826882,1.4580014703826882,False,True,False,loss,False,True,False
+2025-01-06,lotto,2025-01-06_lotto_1,5,3,2,0,0.5,1.0,1.9630540732165636,1.4630540732165636,False,True,False,loss,False,True,False
+2025-01-06,safe,2025-01-06_safe_1,3,2,1,0,0.5,1.3333333333333333,1.9695353146303678,1.4695353146303678,False,True,False,loss,False,True,False
