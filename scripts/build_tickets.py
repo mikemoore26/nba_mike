@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+
 import pandas as pd
 
 from ticket.build_ticket import build_all_tickets
-from model_training.common.manual_overrides import load_omit_players, apply_omit_players
 
 
 def main() -> None:
@@ -24,46 +24,81 @@ def main() -> None:
         "pred_fg3.csv",
     ]
 
-    dfs = []
+    dfs: list[pd.DataFrame] = []
+
     for f in files:
         path = results_dir / f
         if not path.exists():
-            print(f"[WARN] Missing {f}")
+            print(f"[WARN] Missing file: {path}")
             continue
-        dfs.append(pd.read_csv(path))
+
+        df = pd.read_csv(path)
+        if df.empty:
+            print(f"[WARN] Empty file: {path}")
+            continue
+
+        dfs.append(df)
 
     if not dfs:
-        raise ValueError("No prediction files found")
-
-    df = pd.concat(dfs, ignore_index=True)
-
-    print(f"[TICKETS] Total rows before omit filter: {len(df)}")
-    print(f"[TICKETS] Eligible rows before omit filter: {(df['is_eligible'] == 1).sum()}")
+        raise ValueError("No prediction files found to build tickets.")
 
     # -----------------------------
-    # APPLY MANUAL PLAYER OMITS
+    # Combine predictions
     # -----------------------------
-    omit_players = load_omit_players("data/manual/omit_players.csv")
-    print(f"[TICKETS] Loaded omit_players list with {len(omit_players)} players")
-    df = apply_omit_players(df, omit_players)
+    df_all = pd.concat(dfs, ignore_index=True)
+    print(f"[INFO] Combined predictions: {len(df_all)} rows")
 
-    print(f"[TICKETS] Total rows after omit filter: {len(df)}")
-    print(f"[TICKETS] Eligible rows after omit filter: {(df['is_eligible'] == 1).sum()}")
+    # -----------------------------
+    # Build tickets
+    # NOTE:
+    # build_all_tickets() already handles:
+    #   - schema normalization
+    #   - pseudo-line creation if needed
+    #   - score_legs(...)
+    #   - rank_projection_pool(...)
+    #   - safe / balanced / lotto ticket creation
+    # So do NOT pre-rank here.
+    # -----------------------------
+    print("[INFO] Building tickets...")
+    tickets = build_all_tickets(df_all)
 
-    tickets = build_all_tickets(df)
+    tickets_dir = results_dir / "tickets"
+    tickets_dir.mkdir(parents=True, exist_ok=True)
 
-    tickets["ranked_pool"].to_csv(results_dir / "ranked_projection_pool.csv", index=False)
-    tickets["safe"].to_csv(results_dir / "ticket_safe.csv", index=False)
-    tickets["balanced"].to_csv(results_dir / "ticket_balanced.csv", index=False)
-    tickets["lotto"].to_csv(results_dir / "ticket_lotto.csv", index=False)
-    tickets["summary"].to_csv(results_dir / "ticket_summary.csv", index=False)
+    if not isinstance(tickets, dict):
+        out_path = tickets_dir / "tickets.csv"
+        tickets.to_csv(out_path, index=False)
+        print(f"[SAVED] tickets -> {out_path}")
+        print("[DONE] Ticket building complete.")
+        return
 
-    print("[TICKETS] Saved:")
-    print("  ranked_projection_pool.csv")
-    print(f"  ticket_safe.csv      ({len(tickets['safe'])} legs)")
-    print(f"  ticket_balanced.csv  ({len(tickets['balanced'])} legs)")
-    print(f"  ticket_lotto.csv     ({len(tickets['lotto'])} legs)")
-    print("  ticket_summary.csv")
+    # Save ranked pool for debugging
+    ranked_pool = tickets.get("ranked_pool")
+    if ranked_pool is not None and not ranked_pool.empty:
+        ranked_path = results_dir / "ranked_pool.csv"
+        ranked_pool.to_csv(ranked_path, index=False)
+        print(f"[SAVED] ranked_pool -> {ranked_path}")
+    else:
+        print("[WARN] ranked_pool is empty")
+
+    file_map = {
+        "safe": "ticket_safe.csv",
+        "balanced": "ticket_balanced.csv",
+        "lotto": "ticket_lotto.csv",
+        "summary": "ticket_summary.csv",
+    }
+
+    for key, filename in file_map.items():
+        df = tickets.get(key)
+        if df is None or df.empty:
+            print(f"[WARN] Empty ticket set: {key}")
+            continue
+
+        out_path = tickets_dir / filename
+        df.to_csv(out_path, index=False)
+        print(f"[SAVED] {key} -> {out_path}")
+
+    print("[DONE] Ticket building complete.")
 
 
 if __name__ == "__main__":

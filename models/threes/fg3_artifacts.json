@@ -24,25 +24,25 @@
     "opp_def_3p_rank_to_date"
   ],
   "fg3a_feature_medians": {
-    "min_rolling_5": 0.0,
-    "fga_rolling_5": 8.0,
-    "fg3a_rolling_5": 3.4,
-    "fg3m_rolling_5": 1.0,
-    "player_fg3a_season_avg": 2.3,
-    "player_min_season_avg": 0.0,
-    "player_usage_season": 0.0,
-    "home_game": 1.0,
+    "min_rolling_5": 26.211666699999988,
+    "fga_rolling_5": 8.6,
+    "fg3a_rolling_5": 3.8,
+    "fg3m_rolling_5": 1.4,
+    "player_fg3a_season_avg": 3.6666666666666665,
+    "player_min_season_avg": 25.605323944444443,
+    "player_usage_season": 0.5334442533333332,
+    "home_game": 0.0,
     "days_rest": 2.0,
     "back_to_back": 0.0,
     "starter_flag": 0.0,
-    "games_played_to_date": 26.0,
-    "team_games_in_stint_to_date": 25.0,
+    "games_played_to_date": 17.0,
+    "team_games_in_stint_to_date": 17.0,
     "new_team_game": 0.0,
     "recent_team_change_5": 0.0,
-    "opp_fg3a_allowed_pg_to_date": 3.765957446808511,
-    "opp_fg3m_allowed_pg_to_date": 1.3061224489795917,
-    "opp_3p_pct_allowed_to_date": 0.3495575221238938,
-    "opp_def_3p_rank_to_date": 8.0
+    "opp_fg3a_allowed_pg_to_date": 30.321428571428573,
+    "opp_fg3m_allowed_pg_to_date": 10.89655172413793,
+    "opp_3p_pct_allowed_to_date": 0.36231884057971014,
+    "opp_def_3p_rank_to_date": 9.0
   },
   "fg3rate_used_features": [
     "fg3_pct_rolling_10",
@@ -55,15 +55,15 @@
     "opp_3p_pct_allowed_to_date"
   ],
   "fg3rate_feature_medians": {
-    "fg3_pct_rolling_10": 0.33962264150943394,
-    "fg3_att_rolling_10": 38.0,
-    "player_fg3_pct_season": 0.3404255319148936,
-    "home_game": 0.0,
+    "fg3_pct_rolling_10": 0.36082474226804123,
+    "fg3_att_rolling_10": 43.0,
+    "player_fg3_pct_season": 0.358974358974359,
+    "home_game": 1.0,
     "days_rest": 2.0,
     "back_to_back": 0.0,
-    "starter_prob_10": 0.0,
-    "opp_3p_pct_allowed_to_date": 0.35
+    "starter_prob_10": 0.9156388949999998,
+    "opp_3p_pct_allowed_to_date": 0.36221837088388215
   },
-  "dispersion_alpha_mom": 0.17806853277391096,
+  "dispersion_alpha_mom": 0.16167095985722266,
   "baseline_name": "fg3a baseline * fg3 rate baseline"
 }

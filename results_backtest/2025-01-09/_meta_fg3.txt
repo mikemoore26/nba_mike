@@ -1,0 +1,7 @@
+run_date=2025-01-09
+history_cutoff_date=2025-01-09
+rows=136
+active_within_days=21
+min_games_required=3
+min_minutes_threshold=8.0
+max_players_per_team=12

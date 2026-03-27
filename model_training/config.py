@@ -1,3 +1,4 @@
+# model_training/config.py
 from __future__ import annotations
 from pathlib import Path
 
@@ -8,11 +9,16 @@ PATH_GAMLOGS_COMBINED = Path("./data/all_gamelogs_combined.csv")
 GAMELOG_PARQUET_ROOT = Path("./data/gamelogs/gamelogs_parquet/")
 
 # -----------------------------
-# Model Directories (VERSIONED ROOTS)
+# Model Directories
 # -----------------------------
 MODELS_ROOT = Path("./models")
 
 THREES_MODEL_DIR = MODELS_ROOT / "threes"
 POINTS_MODEL_DIR = MODELS_ROOT / "points"
 REBOUNDS_MODEL_DIR = MODELS_ROOT / "rebounds"
-ASSISTS_MODEL_DIR = MODELS_ROOT / "assists"  # future-safe
+ASSISTS_MODEL_DIR = MODELS_ROOT / "assists"
+
+# -----------------------------
+# Results (🔥 REQUIRED FIX)
+# -----------------------------
+RESULTS_ROOT = Path("./results")

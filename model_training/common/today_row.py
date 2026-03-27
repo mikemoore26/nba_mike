@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,191 +11,201 @@ REQUIRED_SLATE_COLS = ["game_date", "team", "opp", "is_home"]
 REQUIRED_HIST_COLS = ["game_date", "player", "team", "opp"]
 
 
-@dataclass(frozen=True)
+@dataclass
 class TodayRowConfig:
-    """
-    Generic candidate filter config for building pregame rows.
-    These thresholds are intentionally conservative for betting use.
-    """
     min_games_required: int = 3
-    active_within_days: int | None = 21
+    active_within_days: Optional[int] = 21
     min_minutes_threshold: float = 8.0
-    max_players_per_team: int = 15
+    max_players_per_team: int = 12
     error_on_empty: bool = True
 
 
-def _validate_slate_df(slate_df: pd.DataFrame) -> None:
-    missing = [c for c in REQUIRED_SLATE_COLS if c not in slate_df.columns]
-    if missing:
-        raise ValueError(f"slate_df missing required columns: {missing}")
+def _parse_single_mp_value(val) -> float:
+    """
+    Parse one Basketball-Reference-style mp value into decimal minutes.
+
+    Handles:
+    - '34:12' -> 34.2
+    - '12'    -> 12.0
+    - 15      -> 15.0
+    - blanks / DNP-ish strings -> np.nan
+    """
+    if pd.isna(val):
+        return np.nan
+
+    s = str(val).strip()
+    if s == "":
+        return np.nan
+
+    lowered = s.lower()
+    bad_tokens = {
+        "did not play",
+        "dnp",
+        "inactive",
+        "not with team",
+        "did not dress",
+        "player suspended",
+    }
+    if lowered in bad_tokens:
+        return np.nan
+
+    if ":" in s:
+        parts = s.split(":", 1)
+        try:
+            mins = float(parts[0])
+            secs = float(parts[1])
+            return mins + secs / 60.0
+        except Exception:
+            return np.nan
+
+    try:
+        return float(s)
+    except Exception:
+        return np.nan
 
 
-def _validate_hist_df(df_hist: pd.DataFrame) -> None:
-    missing = [c for c in REQUIRED_HIST_COLS if c not in df_hist.columns]
-    if missing:
-        raise ValueError(f"df_hist missing required columns: {missing}")
+def _parse_mp_to_minutes(mp_series: pd.Series) -> pd.Series:
+    return mp_series.apply(_parse_single_mp_value).astype(float)
 
 
 def _canon_slate_df(slate_df: pd.DataFrame) -> pd.DataFrame:
     out = slate_df.copy()
-    _validate_slate_df(out)
 
     out["game_date"] = pd.to_datetime(out["game_date"], errors="coerce")
     out = out.dropna(subset=["game_date"]).copy()
 
-    out["team"] = out["team"].astype(str).str.strip().str.upper()
-    out["opp"] = out["opp"].astype(str).str.strip().str.upper()
+    out["team"] = out["team"].astype(str).str.upper().str.strip()
+    out["opp"] = out["opp"].astype(str).str.upper().str.strip()
     out["is_home"] = pd.to_numeric(out["is_home"], errors="coerce").fillna(0).astype(int)
-
-    out = (
-        out.sort_values(["game_date", "team", "opp"], kind="mergesort")
-        .drop_duplicates(subset=["game_date", "team"], keep="last")
-        .reset_index(drop=True)
-    )
 
     return out
 
 
 def _canon_hist_df(df_hist: pd.DataFrame) -> pd.DataFrame:
     out = df_hist.copy()
-    _validate_hist_df(out)
 
     out["game_date"] = pd.to_datetime(out["game_date"], errors="coerce")
     out = out.dropna(subset=["game_date"]).copy()
 
     out["player"] = out["player"].astype(str).str.strip()
-    out["team"] = out["team"].astype(str).str.strip().str.upper()
-    out["opp"] = out["opp"].astype(str).str.strip().str.upper()
+    out["team"] = out["team"].astype(str).str.upper().str.strip()
+    out["opp"] = out["opp"].astype(str).str.upper().str.strip()
+
+    parsed_from_mp = None
+    if "mp" in out.columns:
+        parsed_from_mp = _parse_mp_to_minutes(out["mp"])
 
     if "mp_minutes" in out.columns:
         out["mp_minutes"] = pd.to_numeric(out["mp_minutes"], errors="coerce")
 
-    return out
+        non_null_rate = out["mp_minutes"].notna().mean()
+        positive_rate = (out["mp_minutes"].fillna(0) > 0).mean()
 
+        needs_repair = (non_null_rate < 0.5) or (positive_rate < 0.05)
 
-def _add_player_history_summary(df_hist: pd.DataFrame) -> pd.DataFrame:
-    out = df_hist.copy()
-    out = out.sort_values(["player", "game_date"], kind="mergesort").copy()
-
-    g = out.groupby("player", sort=False)
-
-    out["games_played_career_to_date"] = g.cumcount() + 1
-    out["last_game_date"] = g["game_date"].transform("max")
-
-    if "mp_minutes" in out.columns:
-        out["min_rolling_3_proxy"] = (
-            g["mp_minutes"].shift(1).rolling(3).mean().reset_index(level=0, drop=True)
-        )
-        out["min_rolling_5_proxy"] = (
-            g["mp_minutes"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
-        )
+        if needs_repair and parsed_from_mp is not None:
+            out["mp_minutes"] = parsed_from_mp
     else:
-        out["min_rolling_3_proxy"] = np.nan
-        out["min_rolling_5_proxy"] = np.nan
+        if parsed_from_mp is not None:
+            out["mp_minutes"] = parsed_from_mp
+
+    if "minutes" in out.columns:
+        out["minutes"] = pd.to_numeric(out["minutes"], errors="coerce")
 
     return out
 
 
-def _latest_player_rows(df_hist: pd.DataFrame) -> pd.DataFrame:
-    out = (
-        df_hist.sort_values(["player", "game_date"], kind="mergesort")
-        .groupby("player", as_index=False)
-        .tail(1)
-        .copy()
-    )
-    return out.reset_index(drop=True)
+def _latest_pre_date_player_rows(df_hist: pd.DataFrame, run_date: pd.Timestamp) -> pd.DataFrame:
+    pre = df_hist.loc[df_hist["game_date"] < run_date].copy()
+    if pre.empty:
+        return pre
+
+    # Use latest REAL game played, not latest row blindly.
+    if "mp_minutes" in pre.columns:
+        pre = pre.loc[pd.to_numeric(pre["mp_minutes"], errors="coerce") > 0].copy()
+    elif "minutes" in pre.columns:
+        pre = pre.loc[pd.to_numeric(pre["minutes"], errors="coerce") > 0].copy()
+
+    if pre.empty:
+        return pre
+
+    pre = pre.sort_values(["player", "game_date"])
+    return pre.groupby("player").tail(1).reset_index(drop=True)
 
 
 def _team_candidate_pool(
+    *,
     latest_player_df: pd.DataFrame,
     slate_team: str,
     slate_game_date: pd.Timestamp,
     cfg: TodayRowConfig,
-) -> tuple[pd.DataFrame, dict]:
-    """
-    Filter latest player rows into a likely pregame candidate pool for one team.
-    Returns:
-        (filtered_df, diagnostics)
-    """
-    base = latest_player_df.copy()
-    diagnostics: dict[str, int | float | str] = {"team": slate_team}
-
-    # Must currently belong to that team in latest historical row
-    base = base[base["team"] == slate_team].copy()
-    diagnostics["n_latest_on_team"] = int(len(base))
+):
+    base = latest_player_df[latest_player_df["team"] == slate_team].copy()
 
     if base.empty:
-        diagnostics["reason"] = "no_latest_rows_for_team"
-        return base, diagnostics
+        return base, {}
 
-    # recency filter
-    days_since_last = (slate_game_date - pd.to_datetime(base["game_date"])).dt.days
-    base["days_since_last_game"] = days_since_last
-
-    after_games = base[base["games_played_career_to_date"] >= cfg.min_games_required].copy()
-    diagnostics["n_after_min_games"] = int(len(after_games))
-
-    if cfg.active_within_days is None:
-        after_recency = after_games.copy()
+    if "games_played_to_date" in base.columns:
+        games = pd.to_numeric(base["games_played_to_date"], errors="coerce")
     else:
-        after_recency = after_games[
-            after_games["days_since_last_game"] <= cfg.active_within_days
-        ].copy()
-    diagnostics["n_after_recency"] = int(len(after_recency))
+        games = pd.Series(999, index=base.index, dtype=float)
 
-    if "min_rolling_5" in after_recency.columns:
-        after_recency["minutes_filter_value"] = pd.to_numeric(after_recency["min_rolling_5"], errors="coerce")
-    elif "min_rolling_5_proxy" in after_recency.columns:
-        after_recency["minutes_filter_value"] = pd.to_numeric(after_recency["min_rolling_5_proxy"], errors="coerce")
-    elif "mp_minutes" in after_recency.columns:
-        after_recency["minutes_filter_value"] = pd.to_numeric(after_recency["mp_minutes"], errors="coerce")
+    base = base[games >= cfg.min_games_required]
+
+    if cfg.active_within_days is not None:
+        days = (slate_game_date - base["game_date"]).dt.days
+        base = base[days <= cfg.active_within_days]
+
+    if base.empty:
+        return base, {}
+
+    minutes_val = None
+
+    if "min_rolling_5" in base.columns:
+        minutes_val = pd.to_numeric(base["min_rolling_5"], errors="coerce")
+
+    if minutes_val is None or minutes_val.isna().all():
+        if "min_rolling_5_proxy" in base.columns:
+            minutes_val = pd.to_numeric(base["min_rolling_5_proxy"], errors="coerce")
+
+    if minutes_val is None or minutes_val.isna().all():
+        if "min_rolling_3_proxy" in base.columns:
+            minutes_val = pd.to_numeric(base["min_rolling_3_proxy"], errors="coerce")
+
+    if minutes_val is None or minutes_val.isna().all():
+        if "mp_minutes" in base.columns:
+            minutes_val = pd.to_numeric(base["mp_minutes"], errors="coerce")
+
+    if minutes_val is None or minutes_val.isna().all():
+        if "minutes" in base.columns:
+            minutes_val = pd.to_numeric(base["minutes"], errors="coerce")
+
+    base["minutes_filter_value"] = minutes_val
+
+    mask = (
+        base["minutes_filter_value"].notna()
+        & (base["minutes_filter_value"] >= cfg.min_minutes_threshold)
+    )
+
+    if len(base) > 0 and mask.sum() == 0:
+        print(
+            f"[TODAY_ROWS][WARN] Team={slate_team} all players failed minutes filter "
+            f"(threshold={cfg.min_minutes_threshold}). Falling back."
+        )
+        filtered = base
     else:
-        after_recency["minutes_filter_value"] = np.nan
+        filtered = base.loc[mask]
 
-    after_minutes = after_recency[
-        after_recency["minutes_filter_value"].fillna(0) >= cfg.min_minutes_threshold
-    ].copy()
-    diagnostics["n_after_minutes"] = int(len(after_minutes))
+    if filtered.empty:
+        return filtered, {}
 
-    if after_minutes.empty:
-        if diagnostics["n_after_recency"] == 0:
-            diagnostics["reason"] = "failed_recency_filter"
-        elif diagnostics["n_after_minutes"] == 0:
-            diagnostics["reason"] = "failed_minutes_filter"
-        else:
-            diagnostics["reason"] = "empty_after_filters"
-        return after_minutes, diagnostics
+    filtered = filtered.sort_values("minutes_filter_value", ascending=False)
 
-    sort_cols: list[str] = []
-    ascending: list[bool] = []
-
-    if "minutes_filter_value" in after_minutes.columns:
-        sort_cols.append("minutes_filter_value")
-        ascending.append(False)
-
-    if "games_played_career_to_date" in after_minutes.columns:
-        sort_cols.append("games_played_career_to_date")
-        ascending.append(False)
-
-    if sort_cols:
-        after_minutes = after_minutes.sort_values(sort_cols, ascending=ascending, kind="mergesort").copy()
-
-    out = after_minutes.head(cfg.max_players_per_team).copy()
-    diagnostics["n_final"] = int(len(out))
-    diagnostics["reason"] = "ok"
-
-    return out.reset_index(drop=True), diagnostics
+    return filtered.head(cfg.max_players_per_team).reset_index(drop=True), {}
 
 
-def _overwrite_today_context(
-    team_pool_df: pd.DataFrame,
-    *,
-    game_date: pd.Timestamp,
-    team: str,
-    opp: str,
-    is_home: int,
-) -> pd.DataFrame:
-    out = team_pool_df.copy()
+def _overwrite_today_context(df, game_date, team, opp, is_home):
+    out = df.copy()
 
     out["game_date"] = game_date
     out["date"] = game_date
@@ -203,105 +213,60 @@ def _overwrite_today_context(
     out["opp"] = opp
     out["is_home"] = int(is_home)
 
-    if "home_game" in out.columns:
-        out["home_game"] = int(is_home)
-
     return out
 
 
-def build_today_rows(
-    df_hist: pd.DataFrame,
-    slate_df: pd.DataFrame,
-    *,
-    cfg: TodayRowConfig | None = None,
-) -> pd.DataFrame:
+def build_today_rows(df_hist, slate_df, *, cfg: TodayRowConfig | None = None):
     if cfg is None:
         cfg = TodayRowConfig()
 
     hist = _canon_hist_df(df_hist)
-    hist = _add_player_history_summary(hist)
-
     slate = _canon_slate_df(slate_df)
-    latest = _latest_player_rows(hist)
 
-    hist_max_date = pd.to_datetime(hist["game_date"]).max()
-    slate_min_date = pd.to_datetime(slate["game_date"]).min()
-    slate_max_date = pd.to_datetime(slate["game_date"]).max()
+    all_rows = []
 
-    if cfg.active_within_days is not None and hist_max_date < (slate_min_date - pd.Timedelta(days=cfg.active_within_days)):
-        msg = (
-            "Historical data is too stale for the requested slate under current recency settings.\n"
-            f"hist_max_date={hist_max_date.date()} | "
-            f"slate_min_date={slate_min_date.date()} | "
-            f"active_within_days={cfg.active_within_days}\n"
-            "Either update history, use a slate date closer to your data, "
-            "or relax active_within_days for structural testing."
-        )
-        raise ValueError(msg)
+    for row in slate.itertuples(index=False):
+        latest = _latest_pre_date_player_rows(hist, row.game_date)
 
-    all_rows: list[pd.DataFrame] = []
-    diagnostics_rows: list[dict] = []
-
-    for srow in slate.itertuples(index=False):
-        team_pool, diag = _team_candidate_pool(
+        pool, _ = _team_candidate_pool(
             latest_player_df=latest,
-            slate_team=srow.team,
-            slate_game_date=srow.game_date,
+            slate_team=row.team,
+            slate_game_date=row.game_date,
             cfg=cfg,
         )
-        diag["game_date"] = str(pd.Timestamp(srow.game_date).date())
-        diag["opp"] = srow.opp
-        diagnostics_rows.append(diag)
 
-        if team_pool.empty:
+        if pool.empty:
             continue
 
-        today_rows = _overwrite_today_context(
-            team_pool,
-            game_date=srow.game_date,
-            team=srow.team,
-            opp=srow.opp,
-            is_home=int(srow.is_home),
+        today = _overwrite_today_context(
+            pool,
+            game_date=row.game_date,
+            team=row.team,
+            opp=row.opp,
+            is_home=row.is_home,
         )
-        all_rows.append(today_rows)
+
+        all_rows.append(today)
 
     if not all_rows:
-        diagnostics_df = pd.DataFrame(diagnostics_rows)
-        msg = (
-            "No rotation players found for this slate under current filters.\n"
-            f"hist_max_date={hist_max_date.date()} | "
-            f"slate_range={slate_min_date.date()} to {slate_max_date.date()} | "
-            f"min_games_required={cfg.min_games_required} | "
-            f"active_within_days={cfg.active_within_days} | "
-            f"min_minutes_threshold={cfg.min_minutes_threshold}\n\n"
-            "Team diagnostics:\n"
-            f"{diagnostics_df.to_string(index=False)}"
-        )
         if cfg.error_on_empty:
-            raise ValueError(msg)
+            raise ValueError("No players found for slate")
         return pd.DataFrame()
 
     out = pd.concat(all_rows, ignore_index=True)
-
-    out = (
-        out.sort_values(["game_date", "team", "player"], kind="mergesort")
-        .drop_duplicates(subset=["game_date", "team", "player"], keep="last")
-        .reset_index(drop=True)
-    )
-
     return out
 
 
 def build_today_rows_v2(
-    df_hist: pd.DataFrame,
-    slate_df: pd.DataFrame,
+    df_hist,
+    slate_df,
     *,
-    min_games_required: int = 3,
-    active_within_days: int | None = 21,
-    min_minutes_threshold: float = 8.0,
-    max_players_per_team: int = 15,
-    error_on_empty: bool = True,
-) -> pd.DataFrame:
+    min_games_required=3,
+    active_within_days=21,
+    min_minutes_threshold=8.0,
+    max_players_per_team=12,
+    error_on_empty=True,
+):
     cfg = TodayRowConfig(
         min_games_required=min_games_required,
         active_within_days=active_within_days,
@@ -309,36 +274,19 @@ def build_today_rows_v2(
         max_players_per_team=max_players_per_team,
         error_on_empty=error_on_empty,
     )
-    return build_today_rows(df_hist=df_hist, slate_df=slate_df, cfg=cfg)
+    return build_today_rows(df_hist, slate_df, cfg=cfg)
 
 
 def slate_from_team_pairs(
     *,
-    game_date: str | pd.Timestamp,
+    game_date,
     matchups: Iterable[tuple[str, str]],
-) -> pd.DataFrame:
+):
     game_date = pd.Timestamp(game_date)
 
     rows = []
-    for away_team, home_team in matchups:
-        away_team = str(away_team).strip().upper()
-        home_team = str(home_team).strip().upper()
-
-        rows.append(
-            {
-                "game_date": game_date,
-                "team": away_team,
-                "opp": home_team,
-                "is_home": 0,
-            }
-        )
-        rows.append(
-            {
-                "game_date": game_date,
-                "team": home_team,
-                "opp": away_team,
-                "is_home": 1,
-            }
-        )
+    for away, home in matchups:
+        rows.append({"game_date": game_date, "team": away, "opp": home, "is_home": 0})
+        rows.append({"game_date": game_date, "team": home, "opp": away, "is_home": 1})
 
     return pd.DataFrame(rows)

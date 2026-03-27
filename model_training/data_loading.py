@@ -15,13 +15,16 @@ from model_training.config import GAMELOG_PARQUET_ROOT, PATH_GAMLOGS_COMBINED
 # ----------------------------
 def _mp_series_to_minutes(mp: pd.Series) -> pd.Series:
     """
-    Robust vectorized mp 'MM:SS' -> float minutes.
-    Handles categorical/pyarrow string/mixed values.
+    Parse mp 'MM:SS' -> float minutes.
+    Keeps NaN if parsing fails (DO NOT coerce to 0).
     """
     s = mp.astype("string")
+
     extracted = s.str.extract(r"^(?P<m>\d+):(?P<s>\d+)$")
-    m = pd.to_numeric(extracted["m"], errors="coerce").fillna(0)
-    sec = pd.to_numeric(extracted["s"], errors="coerce").fillna(0)
+
+    m = pd.to_numeric(extracted["m"], errors="coerce")
+    sec = pd.to_numeric(extracted["s"], errors="coerce")
+
     return m + (sec / 60.0)
 
 
