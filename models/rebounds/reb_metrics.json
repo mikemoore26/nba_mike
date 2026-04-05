@@ -3,14 +3,14 @@
   "n_valid": 19504.0,
   "baseline_train_mae": 2.017518897287683,
   "baseline_valid_mae": 2.0795118949958984,
-  "model_train_mae": 1.4135690828601963,
-  "model_valid_mae": 2.0532551677181323,
+  "model_train_mae": 1.3524174068380757,
+  "model_valid_mae": 2.0790338933043553,
   "baseline_train_rmse": 2.636738084808398,
   "baseline_valid_rmse": 2.7125660851307947,
-  "model_train_rmse": 1.7920850804572706,
-  "model_valid_rmse": 2.67255754054327,
+  "model_train_rmse": 1.6953904653941003,
+  "model_valid_rmse": 2.675375847615098,
   "baseline_valid_mape": 0.6300833154114913,
-  "model_valid_mape": 0.6395251813726781,
+  "model_valid_mape": 0.6742426891318316,
   "train_dispersion_alpha_mom": 0.0,
-  "valid_dispersion_alpha_mom": 0.09855158123530233
+  "valid_dispersion_alpha_mom": 0.08320832374101972
 }

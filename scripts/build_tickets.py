@@ -1,3 +1,4 @@
+# scripts/build_tickets.py
 from __future__ import annotations
 
 from datetime import datetime
@@ -5,6 +6,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from ticket.pseudo_legs import expand_to_pseudo_legs
+from ticket.score_legs import score_legs
+from ticket.pool_postprocess import build_curated_scored_pool
 from ticket.build_ticket import build_all_tickets
 
 
@@ -45,22 +49,66 @@ def main() -> None:
     # -----------------------------
     # Combine predictions
     # -----------------------------
-    df_all = pd.concat(dfs, ignore_index=True)
-    print(f"[INFO] Combined predictions: {len(df_all)} rows")
+    pred_all = pd.concat(dfs, ignore_index=True)
+    pred_path = results_dir / "pred_all.csv"
+    pred_all.to_csv(pred_path, index=False)
+    print(f"[SAVED] pred_all -> {pred_path}")
+    print(f"[INFO] Combined predictions: {len(pred_all)} rows")
+
+    # -----------------------------
+    # Expand pseudo legs
+    # -----------------------------
+    print("[INFO] Expanding pseudo legs...")
+    pseudo_legs = expand_to_pseudo_legs(
+        pred_all,
+        line_offsets=(-1.0, 0.0, 1.0),
+        min_prob=0.50,
+        keep_both_sides=True,
+    )
+
+    pseudo_path = results_dir / "pseudo_legs.csv"
+    pseudo_legs.to_csv(pseudo_path, index=False)
+    print(f"[SAVED] pseudo_legs -> {pseudo_path}")
+
+    if pseudo_legs.empty:
+        raise ValueError("No pseudo legs generated from prediction files.")
+
+    # -----------------------------
+    # Score legs
+    # -----------------------------
+    print("[INFO] Scoring legs...")
+    scored = score_legs(pseudo_legs)
+
+    scored_raw_path = results_dir / "scored_legs_raw.csv"
+    scored.to_csv(scored_raw_path, index=False)
+    print(f"[SAVED] scored_legs_raw -> {scored_raw_path}")
+
+    if scored.empty:
+        raise ValueError("No scored legs produced.")
+
+    # -----------------------------
+    # Curate scored pool
+    # -----------------------------
+    print("[INFO] Curating scored pool...")
+    scored_curated = build_curated_scored_pool(
+        scored,
+        score_col="score_balanced",
+        min_p_hit=0.55,
+        min_edge_raw=0.50,
+    )
+
+    curated_path = results_dir / "scored_legs_curated.csv"
+    scored_curated.to_csv(curated_path, index=False)
+    print(f"[SAVED] scored_legs_curated -> {curated_path}")
+
+    if scored_curated.empty:
+        raise ValueError("No curated scored legs available for ticket building.")
 
     # -----------------------------
     # Build tickets
-    # NOTE:
-    # build_all_tickets() already handles:
-    #   - schema normalization
-    #   - pseudo-line creation if needed
-    #   - score_legs(...)
-    #   - rank_projection_pool(...)
-    #   - safe / balanced / lotto ticket creation
-    # So do NOT pre-rank here.
     # -----------------------------
     print("[INFO] Building tickets...")
-    tickets = build_all_tickets(df_all)
+    tickets = build_all_tickets(scored_curated)
 
     tickets_dir = results_dir / "tickets"
     tickets_dir.mkdir(parents=True, exist_ok=True)
@@ -72,9 +120,8 @@ def main() -> None:
         print("[DONE] Ticket building complete.")
         return
 
-    # Save ranked pool for debugging
     ranked_pool = tickets.get("ranked_pool")
-    if ranked_pool is not None and not ranked_pool.empty:
+    if isinstance(ranked_pool, pd.DataFrame) and not ranked_pool.empty:
         ranked_path = results_dir / "ranked_pool.csv"
         ranked_pool.to_csv(ranked_path, index=False)
         print(f"[SAVED] ranked_pool -> {ranked_path}")

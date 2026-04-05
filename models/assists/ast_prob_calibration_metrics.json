@@ -1,0 +1,9 @@
+{
+  "n_validation_rows": 29460.0,
+  "dispersion_alpha_used": 0.07635704782809283,
+  "min_threshold": 2.0,
+  "max_threshold": 12.0,
+  "mean_abs_threshold_prob_error": 0.0038561459688746763,
+  "mean_brier_score": 0.07856978483379079,
+  "mean_ece_10bin": 0.007854882228996643
+}

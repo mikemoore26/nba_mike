@@ -1,0 +1,1292 @@
+{
+  "reb_ge_8": {
+    "calibration_summary": {
+      "n": 19504,
+      "mean_pred": 0.14937116384674562,
+      "actual_rate": 0.16586341263330598,
+      "diff_pred_minus_actual": -0.01649224878656036
+    },
+    "prob_bucket_summary": [
+      {
+        "prob_bucket": "0-.01",
+        "n": 3620,
+        "mean_pred": 0.006003826921756712,
+        "actual_rate": 0.019613259668508288,
+        "diff_pred_minus_actual": -0.013609432746751575
+      },
+      {
+        "prob_bucket": ".01-.03",
+        "n": 4198,
+        "mean_pred": 0.018380684457142575,
+        "actual_rate": 0.0435921867555979,
+        "diff_pred_minus_actual": -0.025211502298455327
+      },
+      {
+        "prob_bucket": ".03-.05",
+        "n": 2075,
+        "mean_pred": 0.03918220699662506,
+        "actual_rate": 0.07662650602409639,
+        "diff_pred_minus_actual": -0.03744429902747133
+      },
+      {
+        "prob_bucket": ".05-.10",
+        "n": 2773,
+        "mean_pred": 0.07210754665770906,
+        "actual_rate": 0.10818608005769924,
+        "diff_pred_minus_actual": -0.036078533399990176
+      },
+      {
+        "prob_bucket": ".10-.20",
+        "n": 2442,
+        "mean_pred": 0.14278902610768873,
+        "actual_rate": 0.19164619164619165,
+        "diff_pred_minus_actual": -0.04885716553850292
+      },
+      {
+        "prob_bucket": ".20-.35",
+        "n": 1639,
+        "mean_pred": 0.26536287852579316,
+        "actual_rate": 0.29164124466137886,
+        "diff_pred_minus_actual": -0.026278366135585707
+      },
+      {
+        "prob_bucket": ".35-.50",
+        "n": 881,
+        "mean_pred": 0.41878590059118403,
+        "actual_rate": 0.4097616345062429,
+        "diff_pred_minus_actual": 0.009024266084941113
+      },
+      {
+        "prob_bucket": ".50+",
+        "n": 1876,
+        "mean_pred": 0.735933352014752,
+        "actual_rate": 0.6476545842217484,
+        "diff_pred_minus_actual": 0.08827876779300359
+      }
+    ],
+    "minutes_bucket_summary": [
+      {
+        "minutes_bucket": "0-12",
+        "n": 1688,
+        "mean_pred": 0.06998294576033791,
+        "actual_rate": 0.002962085308056872,
+        "diff_pred_minus_actual": 0.06702086045228103
+      },
+      {
+        "minutes_bucket": "12-20",
+        "n": 3739,
+        "mean_pred": 0.09517337196829394,
+        "actual_rate": 0.04466434875635197,
+        "diff_pred_minus_actual": 0.05050902321194197
+      },
+      {
+        "minutes_bucket": "20-28",
+        "n": 5688,
+        "mean_pred": 0.1310272816760715,
+        "actual_rate": 0.13677918424753868,
+        "diff_pred_minus_actual": -0.005751902571467182
+      },
+      {
+        "minutes_bucket": "28-36",
+        "n": 6160,
+        "mean_pred": 0.19326422831228973,
+        "actual_rate": 0.24285714285714285,
+        "diff_pred_minus_actual": -0.04959291454485312
+      },
+      {
+        "minutes_bucket": "36+",
+        "n": 2229,
+        "mean_pred": 0.2259129227711198,
+        "actual_rate": 0.35397039030955585,
+        "diff_pred_minus_actual": -0.12805746753843605
+      }
+    ],
+    "sample_rows": [
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Clint Capela",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 7.0,
+        "mp_minutes": 19.583334,
+        "min_rolling_5": 23.4400002,
+        "reb_per_min_5": 0.33276450228016635,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.569168351908334
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "De'Andre Hunter",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 4.0,
+        "mp_minutes": 26.1,
+        "min_rolling_5": 26.293333199999996,
+        "reb_per_min_5": 0.15212981821566848,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.018975041342882568
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Garrison Mathews",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 5.0,
+        "mp_minutes": 28.55,
+        "min_rolling_5": 20.153333399999987,
+        "reb_per_min_5": 0.09923916606272197,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.004045575188982692
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Vit Krejci",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 6.0,
+        "mp_minutes": 28.366667,
+        "min_rolling_5": 20.073332800000003,
+        "reb_per_min_5": 0.10959814306471319,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.004517419099740289
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Zaccharie Risacher",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 3.0,
+        "mp_minutes": 31.65,
+        "min_rolling_5": 23.746666600000005,
+        "reb_per_min_5": 0.15160022501852952,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.06553060314127498
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Daniel Gafford",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 4.0,
+        "mp_minutes": 11.75,
+        "min_rolling_5": 23.703333399999998,
+        "reb_per_min_5": 0.2109407953566565,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.30670871728101445
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Maxi Kleber",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 2.0,
+        "mp_minutes": 29.583334,
+        "min_rolling_5": 25.38000020000001,
+        "reb_per_min_5": 0.1733648528497647,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.07533678491734322
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Quentin Grimes",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 5.0,
+        "mp_minutes": 30.183332,
+        "min_rolling_5": 26.203333800000003,
+        "reb_per_min_5": 0.21371326422594364,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.07930980481034887
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Spencer Dinwiddie",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 1.0,
+        "mp_minutes": 24.383333,
+        "min_rolling_5": 24.346666200000005,
+        "reb_per_min_5": 0.1314348327492985,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.0107676336161499
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Christian Braun",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 3.0,
+        "mp_minutes": 31.8,
+        "min_rolling_5": 30.326666999999997,
+        "reb_per_min_5": 0.13189711879647045,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.05830231374331501
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "DeAndre Jordan",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 7.0,
+        "mp_minutes": 15.116667,
+        "min_rolling_5": 11.079999799999994,
+        "reb_per_min_5": 0.32490975315721593,
+        "minutes_bucket_code": 0.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.02906503257478898
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Julian Strawther",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 6.0,
+        "mp_minutes": 30.1,
+        "min_rolling_5": 19.843333400000013,
+        "reb_per_min_5": 0.11086846930667399,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.003488119197664585
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Michael Porter Jr.",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 4.0,
+        "mp_minutes": 24.316668,
+        "min_rolling_5": 33.32666700000001,
+        "reb_per_min_5": 0.13802760414055204,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.16738880325917815
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Nikola Joki\u0107",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 17.0,
+        "mp_minutes": 29.516666,
+        "min_rolling_5": 35.76666680000001,
+        "reb_per_min_5": 0.3466915178128927,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 1,
+        "reb_ge_8_pred_prob": 0.9761854777559203
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Peyton Watson",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 0.0,
+        "mp_minutes": 24.016666,
+        "min_rolling_5": 24.066667000000002,
+        "reb_per_min_5": 0.12465373788568228,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.02155235541514657
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Russell Westbrook",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 2.0,
+        "mp_minutes": 25.616667,
+        "min_rolling_5": 28.9499998,
+        "reb_per_min_5": 0.23488773910112426,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.13270952103563383
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ausar Thompson",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 5.0,
+        "mp_minutes": 24.766666,
+        "min_rolling_5": 18.5100002,
+        "reb_per_min_5": 0.2485143139004396,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.14174106288132882
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Cade Cunningham",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.333332,
+        "min_rolling_5": 34.9433336,
+        "reb_per_min_5": 0.09157683799235457,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 1,
+        "reb_ge_8_pred_prob": 0.04990765756442371
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Jalen Duren",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 11.0,
+        "mp_minutes": 26.733334,
+        "min_rolling_5": 27.69999979999999,
+        "reb_per_min_5": 0.3176895329797079,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 1,
+        "reb_ge_8_pred_prob": 0.296203861024726
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Malik Beasley",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 6.0,
+        "mp_minutes": 22.066668,
+        "min_rolling_5": 26.513333200000012,
+        "reb_per_min_5": 0.09806386772976546,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.006808147323759835
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ron Holland",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 0.0,
+        "mp_minutes": 10.15,
+        "min_rolling_5": 13.046666800000002,
+        "reb_per_min_5": 0.19928461727864466,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.03705146867434973
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tim Hardaway Jr.",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 2.0,
+        "mp_minutes": 32.5,
+        "min_rolling_5": 25.020000599999996,
+        "reb_per_min_5": 0.06394883939371289,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.0028071814685778004
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tobias Harris",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.866665,
+        "min_rolling_5": 27.846666600000002,
+        "reb_per_min_5": 0.11491501104839599,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 1,
+        "reb_ge_8_pred_prob": 0.04849493747899882
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Bam Adebayo",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 9.0,
+        "mp_minutes": 31.3,
+        "min_rolling_5": 34.1766662,
+        "reb_per_min_5": 0.245781725778742,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_8_actual": 1,
+        "reb_ge_8_pred_prob": 0.8259544299909737
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Haywood Highsmith",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 3.0,
+        "mp_minutes": 26.116667,
+        "min_rolling_5": 25.456666799999986,
+        "reb_per_min_5": 0.1571297621729488,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_8_actual": 0,
+        "reb_ge_8_pred_prob": 0.3226892055017058
+      }
+    ]
+  },
+  "reb_ge_10": {
+    "calibration_summary": {
+      "n": 19504,
+      "mean_pred": 0.07181596385703008,
+      "actual_rate": 0.08613617719442165,
+      "diff_pred_minus_actual": -0.014320213337391571
+    },
+    "prob_bucket_summary": [
+      {
+        "prob_bucket": "0-.01",
+        "n": 11628,
+        "mean_pred": 0.003406965929117743,
+        "actual_rate": 0.015995872033023734,
+        "diff_pred_minus_actual": -0.012588906103905992
+      },
+      {
+        "prob_bucket": ".01-.03",
+        "n": 2969,
+        "mean_pred": 0.017589456525382328,
+        "actual_rate": 0.05927921859211856,
+        "diff_pred_minus_actual": -0.04168976206673623
+      },
+      {
+        "prob_bucket": ".03-.05",
+        "n": 952,
+        "mean_pred": 0.03876269911750251,
+        "actual_rate": 0.10294117647058823,
+        "diff_pred_minus_actual": -0.06417847735308571
+      },
+      {
+        "prob_bucket": ".05-.10",
+        "n": 1068,
+        "mean_pred": 0.07187466439638014,
+        "actual_rate": 0.14232209737827714,
+        "diff_pred_minus_actual": -0.070447432981897
+      },
+      {
+        "prob_bucket": ".10-.20",
+        "n": 868,
+        "mean_pred": 0.1404583459097839,
+        "actual_rate": 0.1912442396313364,
+        "diff_pred_minus_actual": -0.05078589372155251
+      },
+      {
+        "prob_bucket": ".20-.35",
+        "n": 654,
+        "mean_pred": 0.26708141148685377,
+        "actual_rate": 0.30275229357798167,
+        "diff_pred_minus_actual": -0.0356708820911279
+      },
+      {
+        "prob_bucket": ".35-.50",
+        "n": 368,
+        "mean_pred": 0.4192889118296684,
+        "actual_rate": 0.38315217391304346,
+        "diff_pred_minus_actual": 0.03613673791662492
+      },
+      {
+        "prob_bucket": ".50+",
+        "n": 997,
+        "mean_pred": 0.7465472665689713,
+        "actual_rate": 0.5646940822467402,
+        "diff_pred_minus_actual": 0.18185318432223108
+      }
+    ],
+    "minutes_bucket_summary": [
+      {
+        "minutes_bucket": "0-12",
+        "n": 1688,
+        "mean_pred": 0.02258722279695343,
+        "actual_rate": 0.0,
+        "diff_pred_minus_actual": 0.02258722279695343
+      },
+      {
+        "minutes_bucket": "12-20",
+        "n": 3739,
+        "mean_pred": 0.03464632830216214,
+        "actual_rate": 0.012837657127574217,
+        "diff_pred_minus_actual": 0.021808671174587922
+      },
+      {
+        "minutes_bucket": "20-28",
+        "n": 5688,
+        "mean_pred": 0.05897804248623776,
+        "actual_rate": 0.06381856540084388,
+        "diff_pred_minus_actual": -0.00484052291460612
+      },
+      {
+        "minutes_bucket": "28-36",
+        "n": 6160,
+        "mean_pred": 0.101450485544932,
+        "actual_rate": 0.12970779220779222,
+        "diff_pred_minus_actual": -0.02825730666286022
+      },
+      {
+        "minutes_bucket": "36+",
+        "n": 2229,
+        "mean_pred": 0.12230893173888362,
+        "actual_rate": 0.21085688649618664,
+        "diff_pred_minus_actual": -0.08854795475730302
+      }
+    ],
+    "sample_rows": [
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Clint Capela",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 7.0,
+        "mp_minutes": 19.583334,
+        "min_rolling_5": 23.4400002,
+        "reb_per_min_5": 0.33276450228016635,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.32287034574981294
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "De'Andre Hunter",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 4.0,
+        "mp_minutes": 26.1,
+        "min_rolling_5": 26.293333199999996,
+        "reb_per_min_5": 0.15212981821566848,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.006325743373524575
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Garrison Mathews",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 5.0,
+        "mp_minutes": 28.55,
+        "min_rolling_5": 20.153333399999987,
+        "reb_per_min_5": 0.09923916606272197,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.002165763788773017
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Vit Krejci",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 6.0,
+        "mp_minutes": 28.366667,
+        "min_rolling_5": 20.073332800000003,
+        "reb_per_min_5": 0.10959814306471319,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0014226467527618874
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Zaccharie Risacher",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 3.0,
+        "mp_minutes": 31.65,
+        "min_rolling_5": 23.746666600000005,
+        "reb_per_min_5": 0.15160022501852952,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0023377457685631086
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Daniel Gafford",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 4.0,
+        "mp_minutes": 11.75,
+        "min_rolling_5": 23.703333399999998,
+        "reb_per_min_5": 0.2109407953566565,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.021622348754191202
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Maxi Kleber",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 2.0,
+        "mp_minutes": 29.583334,
+        "min_rolling_5": 25.38000020000001,
+        "reb_per_min_5": 0.1733648528497647,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0021853000657599945
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Quentin Grimes",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 5.0,
+        "mp_minutes": 30.183332,
+        "min_rolling_5": 26.203333800000003,
+        "reb_per_min_5": 0.21371326422594364,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.007198559267222601
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Spencer Dinwiddie",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 1.0,
+        "mp_minutes": 24.383333,
+        "min_rolling_5": 24.346666200000005,
+        "reb_per_min_5": 0.1314348327492985,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0010760932139731263
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Christian Braun",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 3.0,
+        "mp_minutes": 31.8,
+        "min_rolling_5": 30.326666999999997,
+        "reb_per_min_5": 0.13189711879647045,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.003670197590222859
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "DeAndre Jordan",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 7.0,
+        "mp_minutes": 15.116667,
+        "min_rolling_5": 11.079999799999994,
+        "reb_per_min_5": 0.32490975315721593,
+        "minutes_bucket_code": 0.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.009139149709078542
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Julian Strawther",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 6.0,
+        "mp_minutes": 30.1,
+        "min_rolling_5": 19.843333400000013,
+        "reb_per_min_5": 0.11086846930667399,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0007181928323571591
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Michael Porter Jr.",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 4.0,
+        "mp_minutes": 24.316668,
+        "min_rolling_5": 33.32666700000001,
+        "reb_per_min_5": 0.13802760414055204,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.01642106413225531
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Nikola Joki\u0107",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 17.0,
+        "mp_minutes": 29.516666,
+        "min_rolling_5": 35.76666680000001,
+        "reb_per_min_5": 0.3466915178128927,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 1,
+        "reb_ge_10_pred_prob": 0.686766861146244
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Peyton Watson",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 0.0,
+        "mp_minutes": 24.016666,
+        "min_rolling_5": 24.066667000000002,
+        "reb_per_min_5": 0.12465373788568228,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0016424674131006885
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Russell Westbrook",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 2.0,
+        "mp_minutes": 25.616667,
+        "min_rolling_5": 28.9499998,
+        "reb_per_min_5": 0.23488773910112426,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.02425925055543057
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ausar Thompson",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 5.0,
+        "mp_minutes": 24.766666,
+        "min_rolling_5": 18.5100002,
+        "reb_per_min_5": 0.2485143139004396,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0075221503356862895
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Cade Cunningham",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.333332,
+        "min_rolling_5": 34.9433336,
+        "reb_per_min_5": 0.09157683799235457,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.012125351323320816
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Jalen Duren",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 11.0,
+        "mp_minutes": 26.733334,
+        "min_rolling_5": 27.69999979999999,
+        "reb_per_min_5": 0.3176895329797079,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 1,
+        "reb_ge_10_pred_prob": 0.14856688967304818
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Malik Beasley",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 6.0,
+        "mp_minutes": 22.066668,
+        "min_rolling_5": 26.513333200000012,
+        "reb_per_min_5": 0.09806386772976546,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0007190089215092274
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ron Holland",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 0.0,
+        "mp_minutes": 10.15,
+        "min_rolling_5": 13.046666800000002,
+        "reb_per_min_5": 0.19928461727864466,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.0013051934914639423
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tim Hardaway Jr.",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 2.0,
+        "mp_minutes": 32.5,
+        "min_rolling_5": 25.020000599999996,
+        "reb_per_min_5": 0.06394883939371289,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.000768826701324242
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tobias Harris",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.866665,
+        "min_rolling_5": 27.846666600000002,
+        "reb_per_min_5": 0.11491501104839599,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.015633344612635717
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Bam Adebayo",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 9.0,
+        "mp_minutes": 31.3,
+        "min_rolling_5": 34.1766662,
+        "reb_per_min_5": 0.245781725778742,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.6890705001700214
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Haywood Highsmith",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 3.0,
+        "mp_minutes": 26.116667,
+        "min_rolling_5": 25.456666799999986,
+        "reb_per_min_5": 0.1571297621729488,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_10_actual": 0,
+        "reb_ge_10_pred_prob": 0.004148701447095835
+      }
+    ]
+  },
+  "reb_ge_12": {
+    "calibration_summary": {
+      "n": 19504,
+      "mean_pred": 0.03498023591349239,
+      "actual_rate": 0.044298605414273995,
+      "diff_pred_minus_actual": -0.009318369500781604
+    },
+    "prob_bucket_summary": [
+      {
+        "prob_bucket": "0-.01",
+        "n": 16163,
+        "mean_pred": 0.0011501720233407242,
+        "actual_rate": 0.010146631194703954,
+        "diff_pred_minus_actual": -0.00899645917136323
+      },
+      {
+        "prob_bucket": ".01-.03",
+        "n": 1049,
+        "mean_pred": 0.017707343550922447,
+        "actual_rate": 0.0905624404194471,
+        "diff_pred_minus_actual": -0.07285509686852465
+      },
+      {
+        "prob_bucket": ".03-.05",
+        "n": 385,
+        "mean_pred": 0.038479459807785284,
+        "actual_rate": 0.13246753246753246,
+        "diff_pred_minus_actual": -0.09398807265974718
+      },
+      {
+        "prob_bucket": ".05-.10",
+        "n": 414,
+        "mean_pred": 0.07042986912703414,
+        "actual_rate": 0.15942028985507245,
+        "diff_pred_minus_actual": -0.08899042072803831
+      },
+      {
+        "prob_bucket": ".10-.20",
+        "n": 438,
+        "mean_pred": 0.1451393994211836,
+        "actual_rate": 0.2374429223744292,
+        "diff_pred_minus_actual": -0.09230352295324562
+      },
+      {
+        "prob_bucket": ".20-.35",
+        "n": 320,
+        "mean_pred": 0.2711601114219451,
+        "actual_rate": 0.265625,
+        "diff_pred_minus_actual": 0.005535111421945127
+      },
+      {
+        "prob_bucket": ".35-.50",
+        "n": 239,
+        "mean_pred": 0.42537041068508846,
+        "actual_rate": 0.3263598326359833,
+        "diff_pred_minus_actual": 0.09901057804910518
+      },
+      {
+        "prob_bucket": ".50+",
+        "n": 496,
+        "mean_pred": 0.7038526388281361,
+        "actual_rate": 0.44556451612903225,
+        "diff_pred_minus_actual": 0.25828812269910384
+      }
+    ],
+    "minutes_bucket_summary": [
+      {
+        "minutes_bucket": "0-12",
+        "n": 1688,
+        "mean_pred": 0.010144557657666928,
+        "actual_rate": 0.0,
+        "diff_pred_minus_actual": 0.010144557657666928
+      },
+      {
+        "minutes_bucket": "12-20",
+        "n": 3739,
+        "mean_pred": 0.015481478400697447,
+        "actual_rate": 0.004011767852366943,
+        "diff_pred_minus_actual": 0.011469710548330504
+      },
+      {
+        "minutes_bucket": "20-28",
+        "n": 5688,
+        "mean_pred": 0.027485476164107115,
+        "actual_rate": 0.026547116736990155,
+        "diff_pred_minus_actual": 0.0009383594271169596
+      },
+      {
+        "minutes_bucket": "28-36",
+        "n": 6160,
+        "mean_pred": 0.05093973953981541,
+        "actual_rate": 0.0711038961038961,
+        "diff_pred_minus_actual": -0.020164156564080687
+      },
+      {
+        "minutes_bucket": "36+",
+        "n": 2229,
+        "mean_pred": 0.061515960611799904,
+        "actual_rate": 0.11664423508299686,
+        "diff_pred_minus_actual": -0.055128274471196954
+      }
+    ],
+    "sample_rows": [
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Clint Capela",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 7.0,
+        "mp_minutes": 19.583334,
+        "min_rolling_5": 23.4400002,
+        "reb_per_min_5": 0.33276450228016635,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.496177336872693
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "De'Andre Hunter",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 4.0,
+        "mp_minutes": 26.1,
+        "min_rolling_5": 26.293333199999996,
+        "reb_per_min_5": 0.15212981821566848,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0009325329295878592
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Garrison Mathews",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 5.0,
+        "mp_minutes": 28.55,
+        "min_rolling_5": 20.153333399999987,
+        "reb_per_min_5": 0.09923916606272197,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00016383855097839328
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Vit Krejci",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 6.0,
+        "mp_minutes": 28.366667,
+        "min_rolling_5": 20.073332800000003,
+        "reb_per_min_5": 0.10959814306471319,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00022175978631447352
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Zaccharie Risacher",
+        "team": "ATL",
+        "opp": "DEN",
+        "reb": 3.0,
+        "mp_minutes": 31.65,
+        "min_rolling_5": 23.746666600000005,
+        "reb_per_min_5": 0.15160022501852952,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0008756793931208629
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Daniel Gafford",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 4.0,
+        "mp_minutes": 11.75,
+        "min_rolling_5": 23.703333399999998,
+        "reb_per_min_5": 0.2109407953566565,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.003990600985459075
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Maxi Kleber",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 2.0,
+        "mp_minutes": 29.583334,
+        "min_rolling_5": 25.38000020000001,
+        "reb_per_min_5": 0.1733648528497647,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00024323748393821943
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Quentin Grimes",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 5.0,
+        "mp_minutes": 30.183332,
+        "min_rolling_5": 26.203333800000003,
+        "reb_per_min_5": 0.21371326422594364,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0007844728622153109
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Spencer Dinwiddie",
+        "team": "DAL",
+        "opp": "HOU",
+        "reb": 1.0,
+        "mp_minutes": 24.383333,
+        "min_rolling_5": 24.346666200000005,
+        "reb_per_min_5": 0.1314348327492985,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00016937099446680766
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Christian Braun",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 3.0,
+        "mp_minutes": 31.8,
+        "min_rolling_5": 30.326666999999997,
+        "reb_per_min_5": 0.13189711879647045,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 7.329578564071833e-05
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "DeAndre Jordan",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 7.0,
+        "mp_minutes": 15.116667,
+        "min_rolling_5": 11.079999799999994,
+        "reb_per_min_5": 0.32490975315721593,
+        "minutes_bucket_code": 0.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.003338649015631819
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Julian Strawther",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 6.0,
+        "mp_minutes": 30.1,
+        "min_rolling_5": 19.843333400000013,
+        "reb_per_min_5": 0.11086846930667399,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00014481149096135255
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Michael Porter Jr.",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 4.0,
+        "mp_minutes": 24.316668,
+        "min_rolling_5": 33.32666700000001,
+        "reb_per_min_5": 0.13802760414055204,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00028743572635882774
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Nikola Joki\u0107",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 17.0,
+        "mp_minutes": 29.516666,
+        "min_rolling_5": 35.76666680000001,
+        "reb_per_min_5": 0.3466915178128927,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 1,
+        "reb_ge_12_pred_prob": 0.7137781910201793
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Peyton Watson",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 0.0,
+        "mp_minutes": 24.016666,
+        "min_rolling_5": 24.066667000000002,
+        "reb_per_min_5": 0.12465373788568228,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0001640849392546706
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Russell Westbrook",
+        "team": "DEN",
+        "opp": "ATL",
+        "reb": 2.0,
+        "mp_minutes": 25.616667,
+        "min_rolling_5": 28.9499998,
+        "reb_per_min_5": 0.23488773910112426,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0031118472737199938
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ausar Thompson",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 5.0,
+        "mp_minutes": 24.766666,
+        "min_rolling_5": 18.5100002,
+        "reb_per_min_5": 0.2485143139004396,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0003733542792385125
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Cade Cunningham",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.333332,
+        "min_rolling_5": 34.9433336,
+        "reb_per_min_5": 0.09157683799235457,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0006525489819926591
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Jalen Duren",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 11.0,
+        "mp_minutes": 26.733334,
+        "min_rolling_5": 27.69999979999999,
+        "reb_per_min_5": 0.3176895329797079,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0705196716708348
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Malik Beasley",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 6.0,
+        "mp_minutes": 22.066668,
+        "min_rolling_5": 26.513333200000012,
+        "reb_per_min_5": 0.09806386772976546,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0001442418285262013
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Ron Holland",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 0.0,
+        "mp_minutes": 10.15,
+        "min_rolling_5": 13.046666800000002,
+        "reb_per_min_5": 0.19928461727864466,
+        "minutes_bucket_code": 1.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00019661509465976446
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tim Hardaway Jr.",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 2.0,
+        "mp_minutes": 32.5,
+        "min_rolling_5": 25.020000599999996,
+        "reb_per_min_5": 0.06394883939371289,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0002343432456965941
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Tobias Harris",
+        "team": "DET",
+        "opp": "ORL",
+        "reb": 8.0,
+        "mp_minutes": 34.866665,
+        "min_rolling_5": 27.846666600000002,
+        "reb_per_min_5": 0.11491501104839599,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.00021610828829592892
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Bam Adebayo",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 9.0,
+        "mp_minutes": 31.3,
+        "min_rolling_5": 34.1766662,
+        "reb_per_min_5": 0.245781725778742,
+        "minutes_bucket_code": 3.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.05212248147544175
+      },
+      {
+        "game_date": "2025-01-01T00:00:00",
+        "player": "Haywood Highsmith",
+        "team": "MIA",
+        "opp": "NOP",
+        "reb": 3.0,
+        "mp_minutes": 26.116667,
+        "min_rolling_5": 25.456666799999986,
+        "reb_per_min_5": 0.1571297621729488,
+        "minutes_bucket_code": 2.0,
+        "reb_ge_12_actual": 0,
+        "reb_ge_12_pred_prob": 0.0004909517984521169
+      }
+    ]
+  }
+}

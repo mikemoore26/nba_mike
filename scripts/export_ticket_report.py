@@ -28,52 +28,26 @@ def _fmt_num(x, digits: int = 1) -> str:
         return str(x)
 
 
-def _make_summary_table(df: pd.DataFrame) -> Table:
-    data = [["Ticket", "Legs", "Avg Pred", "Avg Minutes"]]
-
-    if df.empty:
-        data.append(["No summary found", "", "", ""])
-    else:
-        for _, row in df.iterrows():
-            data.append(
-                [
-                    str(row.get("ticket_name", "")),
-                    str(row.get("n_legs", "")),
-                    _fmt_num(row.get("avg_pred_mean", ""), 1),
-                    _fmt_num(row.get("avg_minutes_proj", ""), 1),
-                ]
-            )
-
-    table = Table(
-        data,
-        colWidths=[1.6 * inch, 0.8 * inch, 1.0 * inch, 1.2 * inch],
-        repeatRows=1,
-    )
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1F2937")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#D1D5DB")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
-                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-            ]
-        )
-    )
-    return table
+# 🔥 COLOR HELPER (new)
+def _p_hit_color(p):
+    try:
+        p = float(p)
+        if p >= 0.72:
+            return colors.HexColor("#16A34A")  # green
+        elif p >= 0.65:
+            return colors.HexColor("#2563EB")  # blue
+        else:
+            return colors.HexColor("#B45309")  # orange
+    except:
+        return colors.black
 
 
 def _make_ticket_table(df: pd.DataFrame) -> Table:
-    headers = ["Player", "Team", "Opp", "Stat", "Pred", "Min"]
+    headers = ["Player", "Tm", "Opp", "Stat", "Line", "Pred", "p_hit"]
     data = [headers]
 
     if df.empty:
-        data.append(["No ticket generated", "", "", "", "", ""])
+        data.append(["No ticket", "", "", "", "", "", ""])
     else:
         for _, row in df.iterrows():
             data.append(
@@ -82,39 +56,38 @@ def _make_ticket_table(df: pd.DataFrame) -> Table:
                     str(row.get("team", "")),
                     str(row.get("opp", "")),
                     str(row.get("stat", "")),
+                    _fmt_num(row.get("line", ""), 1),
                     _fmt_num(row.get("pred_mean", ""), 1),
-                    _fmt_num(row.get("minutes_proj", ""), 1),
+                    _fmt_num(row.get("p_hit", ""), 2),
                 ]
             )
 
     table = Table(
         data,
-        colWidths=[
-            2.2 * inch,
-            0.7 * inch,
-            0.7 * inch,
-            0.8 * inch,
-            0.8 * inch,
-            0.8 * inch,
-        ],
+        colWidths=[1.9 * inch, 0.6 * inch, 0.6 * inch, 0.6 * inch, 0.7 * inch, 0.7 * inch, 0.7 * inch],
         repeatRows=1,
     )
-    table.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#D1D5DB")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
-                ("ALIGN", (1, 1), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ]
+
+    style = TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#D1D5DB")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
+        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+    ])
+
+    # 🎯 Color p_hit column dynamically
+    for i, row in enumerate(data[1:], start=1):
+        style.add(
+            "TEXTCOLOR",
+            (6, i),
+            (6, i),
+            _p_hit_color(row[6])
         )
-    )
+
+    table.setStyle(style)
     return table
 
 
@@ -122,73 +95,70 @@ def _build_pdf(
     *,
     out_path: Path,
     game_date: str,
-    summary_df: pd.DataFrame,
     safe_df: pd.DataFrame,
     balanced_df: pd.DataFrame,
     lotto_df: pd.DataFrame,
 ) -> None:
+
     doc = SimpleDocTemplate(
         str(out_path),
         pagesize=letter,
-        leftMargin=0.65 * inch,
-        rightMargin=0.65 * inch,
-        topMargin=0.65 * inch,
-        bottomMargin=0.65 * inch,
+        leftMargin=0.5 * inch,
+        rightMargin=0.5 * inch,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "TitleCustom",
+
+    title = ParagraphStyle(
+        "title",
         parent=styles["Title"],
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        leading=24,
+        fontSize=22,
         textColor=colors.HexColor("#111827"),
-        spaceAfter=8,
+        spaceAfter=10,
     )
-    subtitle_style = ParagraphStyle(
-        "SubtitleCustom",
+
+    subtitle = ParagraphStyle(
+        "subtitle",
         parent=styles["Normal"],
-        fontName="Helvetica",
         fontSize=10,
-        leading=13,
-        textColor=colors.HexColor("#4B5563"),
-        spaceAfter=14,
+        textColor=colors.HexColor("#6B7280"),
+        spaceAfter=12,
     )
-    section_style = ParagraphStyle(
-        "SectionCustom",
+
+    section = ParagraphStyle(
+        "section",
         parent=styles["Heading2"],
-        fontName="Helvetica-Bold",
-        fontSize=13,
-        leading=16,
+        fontSize=14,
         textColor=colors.HexColor("#1D4ED8"),
-        spaceAfter=8,
         spaceBefore=8,
+        spaceAfter=6,
     )
 
     story = []
 
-    story.append(Paragraph("NBA Projection Tickets", title_style))
+    # 🔥 HEADER
+    story.append(Paragraph("NBA TICKET CARD", title))
     story.append(
         Paragraph(
-            f"Slate date: {game_date} &nbsp;&nbsp;&nbsp; Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            subtitle_style,
+            f"{game_date} • Generated {datetime.now().strftime('%H:%M')}",
+            subtitle,
         )
     )
 
-    story.append(Paragraph("Summary", section_style))
-    story.append(_make_summary_table(summary_df))
-    story.append(Spacer(1, 0.22 * inch))
-
-    story.append(Paragraph("Safe Ticket", section_style))
+    # 🔐 SAFE
+    story.append(Paragraph("SAFE (High Stability)", section))
     story.append(_make_ticket_table(safe_df))
-    story.append(Spacer(1, 0.22 * inch))
+    story.append(Spacer(1, 0.2 * inch))
 
-    story.append(Paragraph("Balanced Ticket", section_style))
+    # ⚖️ BALANCED
+    story.append(Paragraph("BALANCED (Core Mix)", section))
     story.append(_make_ticket_table(balanced_df))
-    story.append(Spacer(1, 0.22 * inch))
+    story.append(Spacer(1, 0.2 * inch))
 
-    story.append(Paragraph("Lotto Ticket", section_style))
+    # 🎯 LOTTO
+    story.append(Paragraph("LOTTO (Ceiling Play)", section))
     story.append(_make_ticket_table(lotto_df))
 
     doc.build(story)
@@ -197,25 +167,25 @@ def _build_pdf(
 def main() -> None:
     slate_date, results_dir = latest_results_dir()
 
-    print(f"[REPORT] Using slate_date = {slate_date}")
+    tickets_dir = results_dir / "tickets"
 
-    summary_df = _load_csv(results_dir / "ticket_summary.csv")
-    safe_df = _load_csv(results_dir / "ticket_safe.csv")
-    balanced_df = _load_csv(results_dir / "ticket_balanced.csv")
-    lotto_df = _load_csv(results_dir / "ticket_lotto.csv")
+    safe_df = _load_csv(tickets_dir / "ticket_safe.csv")
+    balanced_df = _load_csv(tickets_dir / "ticket_balanced.csv")
+    lotto_df = _load_csv(tickets_dir / "ticket_lotto.csv")
 
-    out_path = results_dir / "ticket_report.pdf"
+    # 🔥 NEW NAME
+    out_path = results_dir / f"nba_ticket_card_{slate_date}.pdf"
+
     _build_pdf(
         out_path=out_path,
         game_date=slate_date,
-        summary_df=summary_df,
         safe_df=safe_df,
         balanced_df=balanced_df,
         lotto_df=lotto_df,
     )
 
-    print(f"[REPORT] Saved -> {out_path}")
+    print(f"[CARD] Saved -> {out_path}")
 
 
 if __name__ == "__main__":
-    main()
+    main()  

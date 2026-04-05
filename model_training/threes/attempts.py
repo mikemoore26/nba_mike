@@ -1,3 +1,4 @@
+# model_training/threes/attempts.py
 import pandas as pd
 import numpy as np
 
@@ -15,7 +16,7 @@ def expected_fg3a_ceiling(ph: pd.DataFrame, recent_n: int = 5) -> float:
 
     base = float(tail.tail(recent_n).mean())
     ceiling = float(tail.quantile(0.80))
-    exp = 0.65 * base + 0.35 * ceiling
+    exp = 0.65 * base + 0.35 * ceilingz
 
     cap = float(tail.quantile(0.95))
     return float(np.clip(exp, 0, cap))

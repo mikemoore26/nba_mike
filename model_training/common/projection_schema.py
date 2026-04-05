@@ -25,9 +25,28 @@ PROJECTION_SCHEMA = [
 def enforce_projection_schema(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
 
+    # -------------------------
+    # ensure required columns exist
+    # -------------------------
     for col in PROJECTION_SCHEMA:
         if col not in out.columns:
             out[col] = pd.NA
 
-    out = out[PROJECTION_SCHEMA].copy()
-    return out
+    # -------------------------
+    # KEEP extra columns (like probabilities)
+    # -------------------------
+    extra_cols = [c for c in out.columns if c not in PROJECTION_SCHEMA]
+
+    # final column order:
+    # required first, then extras
+    ordered_cols = PROJECTION_SCHEMA + extra_cols
+
+    # remove duplicates while preserving order
+    seen = set()
+    final_cols = []
+    for c in ordered_cols:
+        if c not in seen:
+            final_cols.append(c)
+            seen.add(c)
+
+    return out[final_cols].copy()

@@ -1,59 +1,50 @@
 from __future__ import annotations
 
-from scripts.predict_ast import main as predict_ast
-from scripts.predict_reb import main as predict_reb
-from scripts.predict_fg3 import main as predict_fg3
-from scripts.predict_pts import main as predict_pts
+import os
+import sys
+
+
+def _configure_utf8_output() -> None:
+    """
+    Make Windows console output resilient to player names with non-ASCII chars.
+    """
+    os.environ["PYTHONUTF8"] = "1"
+
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+_configure_utf8_output()
+
+from scripts.predict_ast import main as predict_ast_main
+from scripts.predict_fg3 import main as predict_fg3_main
+from scripts.predict_pts import main as predict_pts_main
+from scripts.predict_reb import main as predict_reb_main
 
 
 def main() -> None:
-    print("Predicting all player projections...")
+    print("[STEP] Predict AST...")
+    predict_ast_main()
 
-    # TEMP:
-    # history is stale relative to today's slate, so we relax recency gating
-    relaxed_active_within_days = 35
+    print("[STEP] Predict FG3...")
+    predict_fg3_main()
 
-    print("Predicting AST...")
-    predict_ast(
-        use_tomorrow=False,
-        rebuild_history=False,
-        min_games_required=3,
-        active_within_days=relaxed_active_within_days,
-        min_minutes_threshold=8.0,
-        max_players_per_team=12,
-    )
+    print("[STEP] Predict PTS...")
+    predict_pts_main()
 
-    print("Predicting REB...")
-    predict_reb(
-        use_tomorrow=False,
-        rebuild_history=False,
-        min_games_required=3,
-        active_within_days=relaxed_active_within_days,
-        min_minutes_threshold=10.0,
-        max_players_per_team=12,
-    )
+    print("[STEP] Predict REB...")
+    predict_reb_main()
 
-    print("Predicting FG3...")
-    predict_fg3(
-        use_tomorrow=False,
-        rebuild_history=False,
-        min_games_required=3,
-        active_within_days=relaxed_active_within_days,
-        min_minutes_threshold=8.0,
-        max_players_per_team=12,
-    )
-
-    print("Predicting PTS...")
-    predict_pts(
-        use_tomorrow=False,
-        rebuild_history=False,
-        min_games_required=3,
-        active_within_days=relaxed_active_within_days,
-        min_minutes_threshold=10.0,
-        max_players_per_team=12,
-    )
-
-    print("All projection files complete.")
+    print("[DONE] All predictions complete.")
 
 
 if __name__ == "__main__":

@@ -1,77 +1,102 @@
 from __future__ import annotations
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
-REQUIRED_COLS = ["line", "side", "p_hit", "pred_mean"]
-
-
-def _series_or_default(df: pd.DataFrame, col: str, default: float) -> pd.Series:
+def _safe_num(df: pd.DataFrame, col: str, default: float = 0.0) -> pd.Series:
     if col not in df.columns:
         return pd.Series(default, index=df.index, dtype="float64")
     return pd.to_numeric(df[col], errors="coerce").fillna(default)
 
 
 def score_legs(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
+    """
+    Leg-level scoring only.
+
+    Important:
+    - DO NOT truncate the pool here.
+    - DO NOT force final side here if side already exists.
+    - Keep this layer focused on edge + p_hit + tier score construction.
+
+    Final pool sizing and ticket optimization happen later.
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    out = df.copy()
 
     required = ["pred_mean", "line"]
-    for col in required:
-        if col not in df.columns:
-            raise ValueError(f"Missing column: {col}")
+    missing = [c for c in required if c not in out.columns]
+    if missing:
+        raise ValueError(f"score_legs missing required columns: {missing}")
+
+    out["pred_mean"] = pd.to_numeric(out["pred_mean"], errors="coerce")
+    out["line"] = pd.to_numeric(out["line"], errors="coerce")
+
+    if "side" not in out.columns:
+        raw_side = np.where(out["pred_mean"] > out["line"], "over", "under")
+        out["side"] = raw_side
+    else:
+        out["side"] = out["side"].astype(str).str.strip().str.lower()
 
     # -----------------------------------
-    # STEP 1: Create fallback line if missing
+    # Edge (directional + absolute)
     # -----------------------------------
-    if "line" not in df.columns:
-        df["line"] = df["pred_mean"].round()
+    raw_edge = out["pred_mean"] - out["line"]
+    out["edge_raw"] = np.where(out["side"].eq("over"), raw_edge, -raw_edge)
+    out["edge_abs"] = out["edge_raw"].abs()
 
     # -----------------------------------
-    # STEP 2: Side
+    # p_hit fallback if not present
     # -----------------------------------
-    df["side"] = np.where(df["pred_mean"] > df["line"], "over", "under")
+    if "p_hit" not in out.columns:
+        out["p_hit"] = 0.5 + np.tanh(out["edge_raw"] / 2.0) * 0.25
+    else:
+        out["p_hit"] = pd.to_numeric(out["p_hit"], errors="coerce")
+        fallback = 0.5 + np.tanh(out["edge_raw"] / 2.0) * 0.25
+        out["p_hit"] = out["p_hit"].fillna(fallback)
+
+    out["p_hit"] = out["p_hit"].clip(lower=0.0, upper=1.0)
 
     # -----------------------------------
-    # STEP 3: Edge
+    # Slate-stable edge scaling
     # -----------------------------------
-    df["edge_raw"] = df["pred_mean"] - df["line"]
-    df["edge_abs"] = df["edge_raw"].abs()
+    edge_scale = float(out["edge_abs"].quantile(0.95)) if len(out) else 1.0
+    if not np.isfinite(edge_scale) or edge_scale <= 0:
+        edge_scale = 1.0
+
+    out["edge_scaled"] = (out["edge_abs"] / edge_scale).clip(0.0, 1.5)
 
     # -----------------------------------
-    # STEP 4: p_hit (approx fallback)
+    # Tier scores
+    # Still simple, but better than hard pure p_hit/edge mix.
+    # More portfolio-aware shaping happens later in leg_utility.py
     # -----------------------------------
-    if "p_hit" not in df.columns:
-        # simple approximation
-        df["p_hit"] = 0.5 + np.tanh(df["edge_raw"] / 2) * 0.25
-
-    # -----------------------------------
-    # STEP 5: Scores (NO HARD FILTER)
-    # -----------------------------------
-    df["score_safe"] = (
-        0.65 * df["p_hit"]
-        + 0.35 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
+    out["score_safe"] = (
+        0.72 * out["p_hit"]
+        + 0.28 * out["edge_scaled"]
     )
 
-    df["score_balanced"] = (
-        0.55 * df["p_hit"]
-        + 0.45 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
+    out["score_balanced"] = (
+        0.58 * out["p_hit"]
+        + 0.42 * out["edge_scaled"]
     )
 
-    df["score_lotto"] = (
-        0.45 * df["p_hit"]
-        + 0.55 * (df["edge_abs"] / (df["edge_abs"].max() + 1e-6))
+    out["score_lotto"] = (
+        0.42 * out["p_hit"]
+        + 0.58 * out["edge_scaled"]
     )
 
-    # -----------------------------------
-    # STEP 6: KEEP TOP N PER SLATE
-    # -----------------------------------
-    df = df.sort_values("score_balanced", ascending=False)
+    sort_cols = [c for c in ["score_balanced", "p_hit", "edge_abs"] if c in out.columns]
+    out = out.sort_values(sort_cols, ascending=False).reset_index(drop=True)
 
-    # 🔥 THIS IS KEY
-    df = df.head(50)
+    return out
 
-    return df.reset_index(drop=True)
+
 def build_ranked_pool(df: pd.DataFrame) -> pd.DataFrame:
     out = score_legs(df)
-    return out.sort_values("score", ascending=False).reset_index(drop=True)
+    return out.sort_values(
+        ["score_balanced", "p_hit", "edge_abs"],
+        ascending=False,
+    ).reset_index(drop=True)

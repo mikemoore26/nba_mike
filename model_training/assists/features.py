@@ -6,11 +6,57 @@ import pandas as pd
 
 AST_FEATURES = [
     # role / opportunity
+    "min_rolling_3",
     "min_rolling_5",
-    "ast_rolling_5",
+    "min_rolling_10",
+    "starter_prob_10",
+
+    # direct AST history
     "ast_lag_1",
+    "ast_rolling_3",
+    "ast_rolling_5",
+    "ast_rolling_10",
+
+    # rate history
+    "ast_per_min_3",
     "ast_per_min_5",
     "ast_per_min_10",
+
+    # creator-capacity interactions
+    "creator_capacity_recent",
+    "creator_capacity_season",
+    "creator_capacity_role_adj",
+
+    # creator archetype features
+    "is_high_creator",
+    "is_primary_handler",
+    "creator_minutes_interaction",
+    "usage_ast_interaction",
+    "creator_role_interaction",
+    "creator_trend_interaction",
+
+    # ceiling-awareness features
+    "ast_p80_10",
+    "ast_p90_10",
+    "ast_max_10",
+    "ceiling_minus_mean",
+    "ceiling_creator_interaction",
+    "ceiling_minutes_interaction",
+
+    # minutes nonlinearity
+    "minutes_squared",
+    "minutes_creator_interaction",
+
+    # volatility / fragility
+    "min_std_5",
+    "min_std_10",
+    "ast_std_5",
+    "ast_std_10",
+
+    # role / rate trend
+    "min_trend_3v10",
+    "ast_trend_3v10",
+    "ast_pm_trend_3v10",
 
     # player baselines (season to date)
     "player_ast_season_avg",
@@ -18,6 +64,11 @@ AST_FEATURES = [
     "player_ast_per_min_season",
     "player_tov_season_avg",
     "player_usage_season",
+
+    # recent supporting box context
+    "tov_rolling_5",
+    "pts_rolling_5",
+    "tov_per_min_5",
 
     # context
     "home_game",
@@ -79,13 +130,24 @@ def build_features_no_leak(df: pd.DataFrame) -> pd.DataFrame:
 
     g = df.groupby("player", sort=False)
 
-    # trailing rolling means
+    # trailing rolling means for minutes
+    df["min_rolling_3"] = g["mp_minutes"].shift(1).rolling(3).mean().reset_index(level=0, drop=True)
     df["min_rolling_5"] = g["mp_minutes"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
     df["min_rolling_10"] = g["mp_minutes"].shift(1).rolling(10).mean().reset_index(level=0, drop=True)
 
+    # trailing rolling std for minutes (role volatility / fragility)
+    df["min_std_5"] = g["mp_minutes"].shift(1).rolling(5).std().reset_index(level=0, drop=True)
+    df["min_std_10"] = g["mp_minutes"].shift(1).rolling(10).std().reset_index(level=0, drop=True)
+
+    # direct AST history
     df["ast_lag_1"] = g["ast"].shift(1)
+    df["ast_rolling_3"] = g["ast"].shift(1).rolling(3).mean().reset_index(level=0, drop=True)
     df["ast_rolling_5"] = g["ast"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
     df["ast_rolling_10"] = g["ast"].shift(1).rolling(10).mean().reset_index(level=0, drop=True)
+
+    # trailing rolling std for AST
+    df["ast_std_5"] = g["ast"].shift(1).rolling(5).std().reset_index(level=0, drop=True)
+    df["ast_std_10"] = g["ast"].shift(1).rolling(10).std().reset_index(level=0, drop=True)
 
     if "tov" in df.columns:
         df["tov_rolling_5"] = g["tov"].shift(1).rolling(5).mean().reset_index(level=0, drop=True)
@@ -98,13 +160,23 @@ def build_features_no_leak(df: pd.DataFrame) -> pd.DataFrame:
         df["pts_rolling_5"] = np.nan
 
     # rate features
+    ast_sum_3 = g["ast"].shift(1).rolling(3).sum().reset_index(level=0, drop=True)
     ast_sum_5 = g["ast"].shift(1).rolling(5).sum().reset_index(level=0, drop=True)
     ast_sum_10 = g["ast"].shift(1).rolling(10).sum().reset_index(level=0, drop=True)
+
+    min_sum_3 = g["mp_minutes"].shift(1).rolling(3).sum().reset_index(level=0, drop=True)
     min_sum_5 = g["mp_minutes"].shift(1).rolling(5).sum().reset_index(level=0, drop=True)
     min_sum_10 = g["mp_minutes"].shift(1).rolling(10).sum().reset_index(level=0, drop=True)
 
+    df["ast_per_min_3"] = _safe_div(ast_sum_3, min_sum_3)
     df["ast_per_min_5"] = _safe_div(ast_sum_5, min_sum_5)
     df["ast_per_min_10"] = _safe_div(ast_sum_10, min_sum_10)
+
+    if "tov" in df.columns:
+        tov_sum_5 = g["tov"].shift(1).rolling(5).sum().reset_index(level=0, drop=True)
+        df["tov_per_min_5"] = _safe_div(tov_sum_5, min_sum_5)
+    else:
+        df["tov_per_min_5"] = np.nan
 
     # context
     df["days_rest"] = g["game_date"].diff().dt.days.reset_index(level=0, drop=True)
@@ -152,10 +224,76 @@ def add_player_baselines(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["player_usage_season"] = np.nan
 
+    # fill shorter-window features from longer-horizon season baselines
+    df["ast_per_min_3"] = df["ast_per_min_3"].fillna(df["player_ast_per_min_season"])
     df["ast_per_min_5"] = df["ast_per_min_5"].fillna(df["player_ast_per_min_season"])
     df["ast_per_min_10"] = df["ast_per_min_10"].fillna(df["player_ast_per_min_season"])
+
+    df["ast_rolling_3"] = df["ast_rolling_3"].fillna(df["player_ast_season_avg"])
     df["ast_rolling_5"] = df["ast_rolling_5"].fillna(df["player_ast_season_avg"])
     df["ast_rolling_10"] = df["ast_rolling_10"].fillna(df["player_ast_season_avg"])
+
+    # fill minutes opportunity baselines safely
+    df["min_rolling_3"] = df["min_rolling_3"].fillna(df["player_min_season_avg"])
+    df["min_rolling_5"] = df["min_rolling_5"].fillna(df["player_min_season_avg"])
+    df["min_rolling_10"] = df["min_rolling_10"].fillna(df["player_min_season_avg"])
+
+    # trend features
+    df["min_trend_3v10"] = df["min_rolling_3"] - df["min_rolling_10"]
+    df["ast_trend_3v10"] = df["ast_rolling_3"] - df["ast_rolling_10"]
+    df["ast_pm_trend_3v10"] = df["ast_per_min_3"] - df["ast_per_min_10"]
+
+    # creator-capacity interactions
+    df["creator_capacity_recent"] = df["ast_per_min_10"] * df["min_rolling_10"]
+    df["creator_capacity_season"] = df["player_ast_per_min_season"] * df["player_min_season_avg"]
+    df["creator_capacity_role_adj"] = df["starter_prob_10"] * df["ast_per_min_10"] * df["min_rolling_10"]
+
+    # creator archetype flags
+    season_usage_median = df["player_usage_season"].median()
+    if pd.isna(season_usage_median):
+        season_usage_median = 0.0
+
+    df["is_high_creator"] = (df["player_ast_per_min_season"] >= 0.20).astype(int)
+    df["is_primary_handler"] = (
+        (df["player_ast_per_min_season"] >= 0.18)
+        & (df["player_usage_season"].fillna(0.0) >= season_usage_median)
+    ).astype(int)
+
+    # explicit creator interactions
+    df["creator_minutes_interaction"] = df["min_rolling_10"] * df["is_high_creator"]
+    df["usage_ast_interaction"] = df["player_usage_season"].fillna(0.0) * df["ast_per_min_10"]
+    df["creator_role_interaction"] = df["is_primary_handler"] * df["starter_prob_10"] * df["min_rolling_10"]
+    df["creator_trend_interaction"] = df["is_high_creator"] * df["ast_pm_trend_3v10"]
+
+    # ceiling-awareness features
+    df["ast_p80_10"] = (
+        g["ast"]
+        .apply(lambda s: s.shift(1).rolling(10).quantile(0.8))
+        .reset_index(level=[0, 1], drop=True)
+    )
+    df["ast_p90_10"] = (
+        g["ast"]
+        .apply(lambda s: s.shift(1).rolling(10).quantile(0.9))
+        .reset_index(level=[0, 1], drop=True)
+    )
+    df["ast_max_10"] = (
+        g["ast"]
+        .apply(lambda s: s.shift(1).rolling(10).max())
+        .reset_index(level=[0, 1], drop=True)
+    )
+
+    # safe fills so early-season rows still work
+    df["ast_p80_10"] = df["ast_p80_10"].fillna(df["ast_rolling_10"])
+    df["ast_p90_10"] = df["ast_p90_10"].fillna(df["ast_rolling_10"])
+    df["ast_max_10"] = df["ast_max_10"].fillna(df["ast_rolling_10"])
+
+    df["ceiling_minus_mean"] = df["ast_p90_10"] - df["ast_rolling_10"]
+    df["ceiling_creator_interaction"] = df["ast_p90_10"] * df["is_high_creator"]
+    df["ceiling_minutes_interaction"] = df["ast_p90_10"] * df["min_rolling_10"]
+
+    # minutes nonlinearity
+    df["minutes_squared"] = df["min_rolling_10"] ** 2
+    df["minutes_creator_interaction"] = df["min_rolling_10"] * df["is_primary_handler"]
 
     return df
 
